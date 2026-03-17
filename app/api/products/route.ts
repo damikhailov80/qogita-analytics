@@ -1,0 +1,78 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma'
+
+const MAX_PAGE_SIZE = 50;
+const DEFAULT_PAGE_SIZE = 20;
+
+type SortField = 'id' | 'name' | 'brand' | 'category' | 'lowestPriceIncShipping' | 'createdAt' | 'updatedAt';
+type SortOrder = 'asc' | 'desc';
+
+export async function GET(request: NextRequest) {
+    try {
+        const searchParams = request.nextUrl.searchParams;
+
+        // Получаем параметры из query string
+        const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+        const pageSize = Math.min(
+            MAX_PAGE_SIZE,
+            Math.max(1, parseInt(searchParams.get('pageSize') || String(DEFAULT_PAGE_SIZE)))
+        );
+        const sortField = (searchParams.get('sortField') || 'id') as SortField;
+        const sortOrder = (searchParams.get('sortOrder') || 'asc') as SortOrder;
+
+        // Валидация поля сортировки
+        const validSortFields: SortField[] = [
+            'id', 'name', 'brand', 'category', 'lowestPriceIncShipping', 'createdAt', 'updatedAt'
+        ];
+
+        if (!validSortFields.includes(sortField)) {
+            return NextResponse.json(
+                { error: 'Invalid sort field' },
+                { status: 400 }
+            );
+        }
+
+        // Валидация порядка сортировки
+        if (sortOrder !== 'asc' && sortOrder !== 'desc') {
+            return NextResponse.json(
+                { error: 'Invalid sort order. Use "asc" or "desc"' },
+                { status: 400 }
+            );
+        }
+
+        // Подсчет общего количества продуктов
+        const totalCount = await prisma.product.count();
+        const totalPages = Math.ceil(totalCount / pageSize);
+
+        // Получение продуктов с пагинацией и сортировкой
+        const products = await prisma.product.findMany({
+            skip: (page - 1) * pageSize,
+            take: pageSize,
+            orderBy: {
+                [sortField]: sortOrder,
+            },
+        });
+
+        return NextResponse.json({
+            data: products,
+            pagination: {
+                page,
+                pageSize,
+                totalCount,
+                totalPages,
+                hasNextPage: page < totalPages,
+                hasPreviousPage: page > 1,
+            },
+            sort: {
+                field: sortField,
+                order: sortOrder,
+            },
+        });
+    } catch (error) {
+        console.error('Error fetching products:', error);
+        return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 }
+        );
+    }
+}
