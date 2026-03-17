@@ -29,3 +29,11 @@ model Product {
 
   @@map("products")
 }
+
+model Update {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.Text
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@map("updates")
+}

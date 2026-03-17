@@ -35,8 +35,10 @@ npm run db:push
 - `npm run dev` - Запуск dev сервера
 - `npm run build` - Сборка проекта
 - `npm run start` - Запуск production сервера
-- `npm run db:push` - Применение схемы к БД
-- `npm run db:studio` - Открытие Prisma Studio
+- `npm run db:push` - Синхронизация схемы без миграций
+- `npm run db:reset` - Очистка всей базы
+- `npm run db:generate` - Генерация Prisma Client
+- `npm run db:studio` - GUI для просмотра данных
 
 ## Структура таблицы products
 
