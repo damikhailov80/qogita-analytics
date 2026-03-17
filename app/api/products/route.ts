@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client';
 
 const MAX_PAGE_SIZE = 50;
 const DEFAULT_PAGE_SIZE = 20;
 
-type SortField = 'id' | 'name' | 'brand' | 'category' | 'lowestPriceIncShipping' | 'createdAt' | 'updatedAt';
+// Все поля модели Product доступны для сортировки
+type SortField = keyof Prisma.ProductOrderByWithRelationInput;
 type SortOrder = 'asc' | 'desc';
 
 export async function GET(request: NextRequest) {
@@ -20,14 +22,12 @@ export async function GET(request: NextRequest) {
         const sortField = (searchParams.get('sortField') || 'id') as SortField;
         const sortOrder = (searchParams.get('sortOrder') || 'asc') as SortOrder;
 
-        // Валидация поля сортировки
-        const validSortFields: SortField[] = [
-            'id', 'name', 'brand', 'category', 'lowestPriceIncShipping', 'createdAt', 'updatedAt'
-        ];
+        // Валидация поля сортировки - проверяем что это валидное поле Product
+        const validSortFields = Object.keys(prisma.product.fields);
 
-        if (!validSortFields.includes(sortField)) {
+        if (sortField && !validSortFields.includes(sortField as string)) {
             return NextResponse.json(
-                { error: 'Invalid sort field' },
+                { error: `Invalid sort field. Available fields: ${validSortFields.join(', ')}` },
                 { status: 400 }
             );
         }
