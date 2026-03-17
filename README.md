@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Qogita - Product Catalog
 
-## Getting Started
+Next.js приложение с PostgreSQL базой данных для управления каталогом продуктов.
 
-First, run the development server:
+## Требования
+
+- PostgreSQL 12+
+- Node.js 18+
+
+## Установка
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Настройка базы данных
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Создайте базу данных PostgreSQL:
+```sql
+CREATE DATABASE qogita;
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. Обновите `.env` файл с вашими данными подключения:
+```env
+DATABASE_URL="postgresql://username:password@localhost:5432/qogita?schema=public"
+```
 
-## Learn More
+3. Примените схему к базе данных:
+```bash
+npm run db:push
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Команды
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `npm run dev` - Запуск dev сервера
+- `npm run build` - Сборка проекта
+- `npm run start` - Запуск production сервера
+- `npm run db:push` - Применение схемы к БД
+- `npm run db:studio` - Открытие Prisma Studio
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Структура таблицы products
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `gtin` - Уникальный идентификатор товара (GTIN)
+- `name` - Название товара
+- `category` - Категория товара
+- `brand` - Бренд товара
+- `lowestPriceIncShipping` - Минимальная цена с доставкой (€)
+- `unit` - Единица измерения
+- `lowestPricedOfferInventory` - Количество товара по минимальной цене
+- `isPreOrder` - Является ли товар предзаказом
+- `estimatedDeliveryTimeWeeks` - Ожидаемое время доставки (недели)
+- `numberOfOffers` - Количество предложений
+- `totalInventoryAllOffers` - Общее количество товара по всем предложениям
+- `productUrl` - URL товара
+- `imageUrl` - URL изображения товара
+- `createdAt` - Дата создания записи
+- `updatedAt` - Дата последнего обновления
