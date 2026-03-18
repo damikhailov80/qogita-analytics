@@ -13,7 +13,7 @@ import {
     type VisibilityState,
 } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
-import { BrandFilter } from '@/components/brand-filter';
+import { BrandFilterModal } from '@/components/brand-filter-modal';
 
 type Product = {
     id: number;
@@ -310,9 +310,9 @@ export default function ProductsPage() {
                 <div className="flex gap-2">
                     <Button
                         variant="outline"
-                        onClick={() => setShowBrandFilter(!showBrandFilter)}
+                        onClick={() => setShowBrandFilter(true)}
                     >
-                        {showBrandFilter ? 'Скрыть' : 'Показать'} фильтр брендов
+                        Фильтр брендов
                         {(whiteListBrands.length > 0 || blackListBrands.length > 0) && (
                             <span className="ml-1 px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">
                                 {whiteListBrands.length + blackListBrands.length}
@@ -328,20 +328,17 @@ export default function ProductsPage() {
                 </div>
             </div>
 
-            {/* Фильтр по брендам */}
-            {showBrandFilter && (
-                <div className="mb-6">
-                    <BrandFilter
-                        onFilterChange={(whiteList, blackList) => {
-                            setWhiteListBrands(whiteList);
-                            setBlackListBrands(blackList);
-                            // Сбрасываем пагинацию при изменении фильтра
-                            setPagination(prev => ({ ...prev, pageIndex: 0 }));
-                        }}
-                        className="w-full"
-                    />
-                </div>
-            )}
+            {/* Фильтр по брендам в модальном окне */}
+            <BrandFilterModal
+                isOpen={showBrandFilter}
+                onClose={() => setShowBrandFilter(false)}
+                onFilterChange={(whiteList, blackList) => {
+                    setWhiteListBrands(whiteList);
+                    setBlackListBrands(blackList);
+                    // Сбрасываем пагинацию при изменении фильтра
+                    setPagination(prev => ({ ...prev, pageIndex: 0 }));
+                }}
+            />
 
             {showColumnToggle && (
                 <div className="mb-4 p-4 border rounded-lg bg-gray-50">

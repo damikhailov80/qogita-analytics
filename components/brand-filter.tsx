@@ -18,16 +18,24 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
     const [loading, setLoading] = useState(true);
 
     // Состояние для черного списка
-    const [selectedForBlacklist, setSelectedForBlacklist] = useState<Set<string>>(new Set());
+    const [selectedFromAvailableForBlacklist, setSelectedFromAvailableForBlacklist] = useState<Set<string>>(new Set());
+    const [selectedFromBlackList, setSelectedFromBlackList] = useState<Set<string>>(new Set());
     const [blackList, setBlackList] = useState<Set<string>>(new Set());
     const [blacklistProductRange, setBlacklistProductRange] = useState<[number, number]>([0, 100]);
 
     // Состояние для белого списка
-    const [selectedForWhitelist, setSelectedForWhitelist] = useState<Set<string>>(new Set());
+    const [selectedFromAvailableForWhitelist, setSelectedFromAvailableForWhitelist] = useState<Set<string>>(new Set());
+    const [selectedFromWhiteList, setSelectedFromWhiteList] = useState<Set<string>>(new Set());
     const [whiteList, setWhiteList] = useState<Set<string>>(new Set());
     const [whitelistProductRange, setWhitelistProductRange] = useState<[number, number]>([0, 100]);
 
     const [maxProductCount, setMaxProductCount] = useState(100);
+
+    // Состояние для поиска по имени
+    const [searchAvailableForBlacklist, setSearchAvailableForBlacklist] = useState('');
+    const [searchBlackList, setSearchBlackList] = useState('');
+    const [searchAvailableForWhitelist, setSearchAvailableForWhitelist] = useState('');
+    const [searchWhiteList, setSearchWhiteList] = useState('');
 
     // Загружаем данные о брендах
     useEffect(() => {
@@ -57,7 +65,8 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
         brand => brand.product_count >= blacklistProductRange[0] &&
             brand.product_count <= blacklistProductRange[1] &&
             !blackList.has(brand.name) &&
-            !whiteList.has(brand.name)
+            !whiteList.has(brand.name) &&
+            brand.name.toLowerCase().includes(searchAvailableForBlacklist.toLowerCase())
     );
 
     // Фильтруем бренды для белого списка (исключаем уже добавленные в любой список)
@@ -65,71 +74,104 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
         brand => brand.product_count >= whitelistProductRange[0] &&
             brand.product_count <= whitelistProductRange[1] &&
             !blackList.has(brand.name) &&
-            !whiteList.has(brand.name)
+            !whiteList.has(brand.name) &&
+            brand.name.toLowerCase().includes(searchAvailableForWhitelist.toLowerCase())
     );
 
-    // Обработка выбора брендов для черного списка
-    const handleBlacklistBrandToggle = (brandName: string) => {
-        const newSelected = new Set(selectedForBlacklist);
+    // Фильтруем черный список по поиску
+    const filteredBlackList = Array.from(blackList).filter(brandName =>
+        brandName.toLowerCase().includes(searchBlackList.toLowerCase())
+    );
+
+    // Фильтруем белый список по поиску
+    const filteredWhiteList = Array.from(whiteList).filter(brandName =>
+        brandName.toLowerCase().includes(searchWhiteList.toLowerCase())
+    );
+
+    // Обработка выбора брендов из доступных для черного списка
+    const handleAvailableBrandToggleForBlacklist = (brandName: string) => {
+        const newSelected = new Set(selectedFromAvailableForBlacklist);
         if (newSelected.has(brandName)) {
             newSelected.delete(brandName);
         } else {
             newSelected.add(brandName);
         }
-        setSelectedForBlacklist(newSelected);
+        setSelectedFromAvailableForBlacklist(newSelected);
     };
 
-    // Обработка выбора брендов для белого списка
-    const handleWhitelistBrandToggle = (brandName: string) => {
-        const newSelected = new Set(selectedForWhitelist);
+    // Обработка выбора брендов из черного списка
+    const handleBlackListBrandToggle = (brandName: string) => {
+        const newSelected = new Set(selectedFromBlackList);
         if (newSelected.has(brandName)) {
             newSelected.delete(brandName);
         } else {
             newSelected.add(brandName);
         }
-        setSelectedForWhitelist(newSelected);
+        setSelectedFromBlackList(newSelected);
+    };
+
+    // Обработка выбора брендов из доступных для белого списка
+    const handleAvailableBrandToggleForWhitelist = (brandName: string) => {
+        const newSelected = new Set(selectedFromAvailableForWhitelist);
+        if (newSelected.has(brandName)) {
+            newSelected.delete(brandName);
+        } else {
+            newSelected.add(brandName);
+        }
+        setSelectedFromAvailableForWhitelist(newSelected);
+    };
+
+    // Обработка выбора брендов из белого списка
+    const handleWhiteListBrandToggle = (brandName: string) => {
+        const newSelected = new Set(selectedFromWhiteList);
+        if (newSelected.has(brandName)) {
+            newSelected.delete(brandName);
+        } else {
+            newSelected.add(brandName);
+        }
+        setSelectedFromWhiteList(newSelected);
     };
 
     // Добавление выбранных брендов в черный список
     const handleAddToBlackList = () => {
-        const newBlackList = new Set([...blackList, ...selectedForBlacklist]);
+        const newBlackList = new Set([...blackList, ...selectedFromAvailableForBlacklist]);
         // Удаляем из белого списка если есть
-        const newWhiteList = new Set([...whiteList].filter(brand => !selectedForBlacklist.has(brand)));
+        const newWhiteList = new Set([...whiteList].filter(brand => !selectedFromAvailableForBlacklist.has(brand)));
 
         setBlackList(newBlackList);
         setWhiteList(newWhiteList);
-        setSelectedForBlacklist(new Set());
+        setSelectedFromAvailableForBlacklist(new Set());
 
         onFilterChange?.(Array.from(newWhiteList), Array.from(newBlackList));
     };
 
     // Удаление выбранных брендов из черного списка
     const handleRemoveFromBlackList = () => {
-        const newBlackList = new Set([...blackList].filter(brand => !selectedForBlacklist.has(brand)));
+        const newBlackList = new Set([...blackList].filter(brand => !selectedFromBlackList.has(brand)));
         setBlackList(newBlackList);
-        setSelectedForBlacklist(new Set());
+        setSelectedFromBlackList(new Set());
 
         onFilterChange?.(Array.from(whiteList), Array.from(newBlackList));
     };
 
     // Добавление выбранных брендов в белый список
     const handleAddToWhiteList = () => {
-        const newWhiteList = new Set([...whiteList, ...selectedForWhitelist]);
+        const newWhiteList = new Set([...whiteList, ...selectedFromAvailableForWhitelist]);
         // Удаляем из черного списка если есть
-        const newBlackList = new Set([...blackList].filter(brand => !selectedForWhitelist.has(brand)));
+        const newBlackList = new Set([...blackList].filter(brand => !selectedFromAvailableForWhitelist.has(brand)));
 
         setWhiteList(newWhiteList);
         setBlackList(newBlackList);
-        setSelectedForWhitelist(new Set());
+        setSelectedFromAvailableForWhitelist(new Set());
 
         onFilterChange?.(Array.from(newWhiteList), Array.from(newBlackList));
     };
 
     // Удаление выбранных брендов из белого списка
     const handleRemoveFromWhiteList = () => {
-        const newWhiteList = new Set([...whiteList].filter(brand => !selectedForWhitelist.has(brand)));
+        const newWhiteList = new Set([...whiteList].filter(brand => !selectedFromWhiteList.has(brand)));
         setWhiteList(newWhiteList);
-        setSelectedForWhitelist(new Set());
+        setSelectedFromWhiteList(new Set());
 
         onFilterChange?.(Array.from(newWhiteList), Array.from(blackList));
     };
@@ -152,37 +194,28 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
         onFilterChange?.(Array.from(newWhiteList), Array.from(blackList));
     };
 
-    // Очистка всех фильтров
-    const handleClearAll = () => {
-        setSelectedForBlacklist(new Set());
-        setSelectedForWhitelist(new Set());
-        setWhiteList(new Set());
-        setBlackList(new Set());
-        onFilterChange?.([], []);
-    };
-
     // Выбор всех брендов для черного списка
     const handleSelectAllForBlacklist = () => {
         const allFiltered = new Set(filteredBrandsForBlacklist.map(brand => brand.name));
-        setSelectedForBlacklist(allFiltered);
+        setSelectedFromAvailableForBlacklist(allFiltered);
     };
 
     // Выбор всех брендов для белого списка
     const handleSelectAllForWhitelist = () => {
         const allFiltered = new Set(filteredBrandsForWhitelist.map(brand => brand.name));
-        setSelectedForWhitelist(allFiltered);
+        setSelectedFromAvailableForWhitelist(allFiltered);
     };
 
     // Выбор всех брендов в черном списке
     const handleSelectAllInBlackList = () => {
-        const allInBlackList = new Set(Array.from(blackList));
-        setSelectedForBlacklist(allInBlackList);
+        const allInBlackList = new Set(filteredBlackList);
+        setSelectedFromBlackList(allInBlackList);
     };
 
     // Выбор всех брендов в белом списке
     const handleSelectAllInWhiteList = () => {
-        const allInWhiteList = new Set(Array.from(whiteList));
-        setSelectedForWhitelist(allInWhiteList);
+        const allInWhiteList = new Set(filteredWhiteList);
+        setSelectedFromWhiteList(allInWhiteList);
     };
 
     if (loading) {
@@ -200,28 +233,39 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
         );
     }
 
+    // Очистка белого списка
+    const handleClearWhiteList = () => {
+        setSelectedFromAvailableForWhitelist(new Set());
+        setSelectedFromWhiteList(new Set());
+        setWhiteList(new Set());
+        onFilterChange?.([], Array.from(blackList));
+    };
+
+    // Очистка черного списка
+    const handleClearBlackList = () => {
+        setSelectedFromAvailableForBlacklist(new Set());
+        setSelectedFromBlackList(new Set());
+        setBlackList(new Set());
+        onFilterChange?.(Array.from(whiteList), []);
+    };
+
     return (
         <div className={`p-4 border rounded-lg bg-white ${className}`}>
-            <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-4">Фильтр по брендам</h3>
-
-                {/* Кнопка очистки всех фильтров */}
-                <div className="mb-4">
-                    <button
-                        onClick={handleClearAll}
-                        className="px-4 py-2 text-sm bg-gray-700 text-white rounded hover:bg-gray-800 transition-colors"
-                    >
-                        Очистить все фильтры
-                    </button>
-                </div>
-            </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 {/* ГРУППА 1: Черный список */}
                 <div className="border rounded-lg p-4 bg-red-50">
-                    <h4 className="text-lg font-medium text-red-700 mb-4">
-                        Черный список (исключить из поиска)
-                    </h4>
+                    <div className="flex justify-between items-center mb-4">
+                        <h4 className="text-lg font-medium text-red-700">
+                            Черный список (исключить из поиска)
+                        </h4>
+                        <button
+                            onClick={handleClearBlackList}
+                            className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                        >
+                            Очистить черный список
+                        </button>
+                    </div>
 
                     {/* Ползунок для черного списка */}
                     <div className="mb-4">
@@ -241,7 +285,7 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
                         {/* Список всех брендов для черного списка */}
                         <div className="lg:col-span-2">
                             <div className="flex justify-between items-center mb-2">
-                                <h5 className="text-sm font-medium text-gray-700">Все бренды</h5>
+                                <h5 className="text-sm font-medium text-gray-700">Все бренды ({filteredBrandsForBlacklist.length})</h5>
                                 <div className="flex gap-1">
                                     <button
                                         onClick={handleSelectAllForBlacklist}
@@ -249,18 +293,25 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
                                         disabled={filteredBrandsForBlacklist.length === 0}
                                         title="Выбрать все доступные бренды"
                                     >
-                                        Все ({filteredBrandsForBlacklist.length})
+                                        Все
                                     </button>
                                     <button
-                                        onClick={() => setSelectedForBlacklist(new Set())}
+                                        onClick={() => setSelectedFromAvailableForBlacklist(new Set())}
                                         className="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-                                        disabled={selectedForBlacklist.size === 0}
+                                        disabled={selectedFromAvailableForBlacklist.size === 0}
                                         title="Снять выбор"
                                     >
-                                        Снять ({selectedForBlacklist.size})
+                                        Снять
                                     </button>
                                 </div>
                             </div>
+                            <input
+                                type="text"
+                                placeholder="Поиск брендов..."
+                                value={searchAvailableForBlacklist}
+                                onChange={(e) => setSearchAvailableForBlacklist(e.target.value)}
+                                className="w-full px-3 py-1 text-sm border rounded mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
                             <div className="h-64 overflow-y-auto border rounded p-2 bg-white">
                                 {filteredBrandsForBlacklist.length === 0 ? (
                                     <p className="text-gray-500 text-sm">
@@ -271,11 +322,11 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
                                         {filteredBrandsForBlacklist.map((brand) => (
                                             <div
                                                 key={brand.name}
-                                                className={`cursor-pointer p-2 rounded text-sm transition-colors ${selectedForBlacklist.has(brand.name)
+                                                className={`cursor-pointer p-2 rounded text-sm transition-colors ${selectedFromAvailableForBlacklist.has(brand.name)
                                                     ? 'bg-blue-100 border border-blue-300'
                                                     : 'hover:bg-gray-100'
                                                     }`}
-                                                onClick={() => handleBlacklistBrandToggle(brand.name)}
+                                                onClick={() => handleAvailableBrandToggleForBlacklist(brand.name)}
                                             >
                                                 {brand.name} ({brand.product_count})
                                             </div>
@@ -286,22 +337,22 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
                         </div>
 
                         {/* Кнопки между списками */}
-                        <div className="flex flex-col justify-center items-center gap-2 py-8">
+                        <div className="flex flex-col justify-center items-center gap-3 h-64">
                             <button
                                 onClick={handleAddToBlackList}
-                                className="px-4 py-2 text-lg bg-red-500 text-white rounded hover:bg-red-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                                disabled={selectedForBlacklist.size === 0}
+                                className="w-12 h-12 flex items-center justify-center text-xl bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                                disabled={selectedFromAvailableForBlacklist.size === 0}
                                 title="Добавить выбранные в черный список"
                             >
-                                ⇒
+                                →
                             </button>
                             <button
                                 onClick={handleRemoveFromBlackList}
-                                className="px-4 py-2 text-lg bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                                disabled={selectedForBlacklist.size === 0}
+                                className="w-12 h-12 flex items-center justify-center text-xl bg-gray-500 text-white rounded-full hover:bg-gray-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                                disabled={selectedFromBlackList.size === 0}
                                 title="Удалить выбранные из черного списка"
                             >
-                                ⇐
+                                ←
                             </button>
                         </div>
 
@@ -309,7 +360,7 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
                         <div className="lg:col-span-2">
                             <div className="flex justify-between items-center mb-2">
                                 <h5 className="text-sm font-medium text-red-700">
-                                    Черный список ({blackList.size})
+                                    Черный список ({filteredBlackList.length})
                                 </h5>
                                 <div className="flex gap-1">
                                     <button
@@ -321,30 +372,39 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
                                         Все
                                     </button>
                                     <button
-                                        onClick={() => setSelectedForBlacklist(new Set())}
+                                        onClick={() => setSelectedFromBlackList(new Set())}
                                         className="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-                                        disabled={selectedForBlacklist.size === 0}
+                                        disabled={selectedFromBlackList.size === 0}
                                         title="Снять выбор"
                                     >
                                         Снять
                                     </button>
                                 </div>
                             </div>
+                            <input
+                                type="text"
+                                placeholder="Поиск в черном списке..."
+                                value={searchBlackList}
+                                onChange={(e) => setSearchBlackList(e.target.value)}
+                                className="w-full px-3 py-1 text-sm border rounded mb-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                            />
                             <div className="h-64 overflow-y-auto border rounded p-2 bg-white">
-                                {blackList.size === 0 ? (
-                                    <p className="text-gray-500 text-sm">Пусто</p>
+                                {filteredBlackList.length === 0 ? (
+                                    <p className="text-gray-500 text-sm">
+                                        {blackList.size === 0 ? 'Пусто' : 'Нет результатов поиска'}
+                                    </p>
                                 ) : (
                                     <div className="space-y-1">
-                                        {Array.from(blackList).map((brandName) => {
+                                        {filteredBlackList.map((brandName) => {
                                             const brand = brands.find(b => b.name === brandName);
                                             return (
                                                 <div
                                                     key={brandName}
-                                                    className={`cursor-pointer p-2 rounded text-sm transition-colors border border-red-200 ${selectedForBlacklist.has(brandName)
+                                                    className={`cursor-pointer p-2 rounded text-sm transition-colors border border-red-200 ${selectedFromBlackList.has(brandName)
                                                         ? 'bg-blue-100 border-blue-300'
                                                         : 'bg-red-100 hover:bg-red-200'
                                                         }`}
-                                                    onClick={() => handleBlacklistBrandToggle(brandName)}
+                                                    onClick={() => handleBlackListBrandToggle(brandName)}
                                                 >
                                                     <div className="flex items-center justify-between">
                                                         <span className="text-red-700 line-through">
@@ -372,9 +432,17 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
 
                 {/* ГРУППА 2: Белый список */}
                 <div className="border rounded-lg p-4 bg-green-50">
-                    <h4 className="text-lg font-medium text-green-700 mb-4">
-                        Белый список (включить в поиск)
-                    </h4>
+                    <div className="flex justify-between items-center mb-4">
+                        <h4 className="text-lg font-medium text-green-700">
+                            Белый список (включить в поиск)
+                        </h4>
+                        <button
+                            onClick={handleClearWhiteList}
+                            className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                        >
+                            Очистить белый список
+                        </button>
+                    </div>
 
                     {/* Ползунок для белого списка */}
                     <div className="mb-4">
@@ -394,7 +462,7 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
                         {/* Список всех брендов для белого списка */}
                         <div className="lg:col-span-2">
                             <div className="flex justify-between items-center mb-2">
-                                <h5 className="text-sm font-medium text-gray-700">Все бренды</h5>
+                                <h5 className="text-sm font-medium text-gray-700">Все бренды ({filteredBrandsForWhitelist.length})</h5>
                                 <div className="flex gap-1">
                                     <button
                                         onClick={handleSelectAllForWhitelist}
@@ -402,18 +470,25 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
                                         disabled={filteredBrandsForWhitelist.length === 0}
                                         title="Выбрать все доступные бренды"
                                     >
-                                        Все ({filteredBrandsForWhitelist.length})
+                                        Все
                                     </button>
                                     <button
-                                        onClick={() => setSelectedForWhitelist(new Set())}
+                                        onClick={() => setSelectedFromAvailableForWhitelist(new Set())}
                                         className="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-                                        disabled={selectedForWhitelist.size === 0}
+                                        disabled={selectedFromAvailableForWhitelist.size === 0}
                                         title="Снять выбор"
                                     >
-                                        Снять ({selectedForWhitelist.size})
+                                        Снять
                                     </button>
                                 </div>
                             </div>
+                            <input
+                                type="text"
+                                placeholder="Поиск брендов..."
+                                value={searchAvailableForWhitelist}
+                                onChange={(e) => setSearchAvailableForWhitelist(e.target.value)}
+                                className="w-full px-3 py-1 text-sm border rounded mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
                             <div className="h-64 overflow-y-auto border rounded p-2 bg-white">
                                 {filteredBrandsForWhitelist.length === 0 ? (
                                     <p className="text-gray-500 text-sm">
@@ -424,11 +499,11 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
                                         {filteredBrandsForWhitelist.map((brand) => (
                                             <div
                                                 key={brand.name}
-                                                className={`cursor-pointer p-2 rounded text-sm transition-colors ${selectedForWhitelist.has(brand.name)
+                                                className={`cursor-pointer p-2 rounded text-sm transition-colors ${selectedFromAvailableForWhitelist.has(brand.name)
                                                     ? 'bg-blue-100 border border-blue-300'
                                                     : 'hover:bg-gray-100'
                                                     }`}
-                                                onClick={() => handleWhitelistBrandToggle(brand.name)}
+                                                onClick={() => handleAvailableBrandToggleForWhitelist(brand.name)}
                                             >
                                                 {brand.name} ({brand.product_count})
                                             </div>
@@ -439,22 +514,22 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
                         </div>
 
                         {/* Кнопки между списками */}
-                        <div className="flex flex-col justify-center items-center gap-2 py-8">
+                        <div className="flex flex-col justify-center items-center gap-3 h-64">
                             <button
                                 onClick={handleAddToWhiteList}
-                                className="px-4 py-2 text-lg bg-green-500 text-white rounded hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                                disabled={selectedForWhitelist.size === 0}
+                                className="w-12 h-12 flex items-center justify-center text-xl bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                                disabled={selectedFromAvailableForWhitelist.size === 0}
                                 title="Добавить выбранные в белый список"
                             >
-                                ⇒
+                                →
                             </button>
                             <button
                                 onClick={handleRemoveFromWhiteList}
-                                className="px-4 py-2 text-lg bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                                disabled={selectedForWhitelist.size === 0}
+                                className="w-12 h-12 flex items-center justify-center text-xl bg-gray-500 text-white rounded-full hover:bg-gray-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                                disabled={selectedFromWhiteList.size === 0}
                                 title="Удалить выбранные из белого списка"
                             >
-                                ⇐
+                                ←
                             </button>
                         </div>
 
@@ -462,7 +537,7 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
                         <div className="lg:col-span-2">
                             <div className="flex justify-between items-center mb-2">
                                 <h5 className="text-sm font-medium text-green-700">
-                                    Белый список ({whiteList.size})
+                                    Белый список ({filteredWhiteList.length})
                                 </h5>
                                 <div className="flex gap-1">
                                     <button
@@ -474,30 +549,39 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
                                         Все
                                     </button>
                                     <button
-                                        onClick={() => setSelectedForWhitelist(new Set())}
+                                        onClick={() => setSelectedFromWhiteList(new Set())}
                                         className="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-                                        disabled={selectedForWhitelist.size === 0}
+                                        disabled={selectedFromWhiteList.size === 0}
                                         title="Снять выбор"
                                     >
                                         Снять
                                     </button>
                                 </div>
                             </div>
+                            <input
+                                type="text"
+                                placeholder="Поиск в белом списке..."
+                                value={searchWhiteList}
+                                onChange={(e) => setSearchWhiteList(e.target.value)}
+                                className="w-full px-3 py-1 text-sm border rounded mb-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            />
                             <div className="h-64 overflow-y-auto border rounded p-2 bg-white">
-                                {whiteList.size === 0 ? (
-                                    <p className="text-gray-500 text-sm">Пусто</p>
+                                {filteredWhiteList.length === 0 ? (
+                                    <p className="text-gray-500 text-sm">
+                                        {whiteList.size === 0 ? 'Пусто' : 'Нет результатов поиска'}
+                                    </p>
                                 ) : (
                                     <div className="space-y-1">
-                                        {Array.from(whiteList).map((brandName) => {
+                                        {filteredWhiteList.map((brandName) => {
                                             const brand = brands.find(b => b.name === brandName);
                                             return (
                                                 <div
                                                     key={brandName}
-                                                    className={`cursor-pointer p-2 rounded text-sm transition-colors border border-green-200 ${selectedForWhitelist.has(brandName)
+                                                    className={`cursor-pointer p-2 rounded text-sm transition-colors border border-green-200 ${selectedFromWhiteList.has(brandName)
                                                         ? 'bg-blue-100 border-blue-300'
                                                         : 'bg-green-100 hover:bg-green-200'
                                                         }`}
-                                                    onClick={() => handleWhitelistBrandToggle(brandName)}
+                                                    onClick={() => handleWhiteListBrandToggle(brandName)}
                                                 >
                                                     <div className="flex items-center justify-between">
                                                         <span className="text-green-700 font-medium">
@@ -524,16 +608,18 @@ export function BrandFilter({ onFilterChange, className }: BrandFilterProps) {
                 </div>
             </div>
 
-            {/* Информация о фильтрах */}
-            {(whiteList.size > 0 || blackList.size > 0) && (
-                <div className="mt-6 pt-4 border-t">
+            {/* Информация о фильтрах - зарезервированное место */}
+            <div className="mt-6 pt-4 border-t h-8 flex items-center">
+                {(whiteList.size > 0 || blackList.size > 0) ? (
                     <p className="text-sm text-gray-600">
                         {whiteList.size > 0 && `Включить только: ${whiteList.size} брендов`}
                         {whiteList.size > 0 && blackList.size > 0 && ' | '}
                         {blackList.size > 0 && `Исключить: ${blackList.size} брендов`}
                     </p>
-                </div>
-            )}
+                ) : (
+                    <p className="text-sm text-gray-400">Фильтры не применены</p>
+                )}
+            </div>
         </div>
     );
 }
