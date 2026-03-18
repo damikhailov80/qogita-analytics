@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 
-interface Product {
+interface CatalogItem {
     gtin: string;
     name: string;
     category: string;
@@ -47,14 +47,14 @@ function convertCSVToJSON(csvFilePath: string, outputPath?: string): void {
     const lines = fileContent.split('\n').filter(line => line.trim());
 
     const headers = parseCSVLine(lines[0]);
-    const products: Product[] = [];
+    const items: CatalogItem[] = [];
 
     for (let i = 1; i < lines.length; i++) {
         const values = parseCSVLine(lines[i]);
 
         if (values.length !== headers.length) continue;
 
-        const product: Product = {
+        const item: CatalogItem = {
             gtin: values[0],
             name: values[1],
             category: values[2],
@@ -70,13 +70,13 @@ function convertCSVToJSON(csvFilePath: string, outputPath?: string): void {
             imageUrl: values[12]
         };
 
-        products.push(product);
+        items.push(item);
     }
 
     const output = outputPath || csvFilePath.replace('.csv', '.json');
-    fs.writeFileSync(output, JSON.stringify(products, null, 2), 'utf-8');
+    fs.writeFileSync(output, JSON.stringify(items, null, 2), 'utf-8');
 
-    console.log(`✓ Преобразовано ${products.length} продуктов`);
+    console.log(`✓ Преобразовано ${items.length} элементов`);
     console.log(`✓ Сохранено в: ${output}`);
 }
 

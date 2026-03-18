@@ -31,7 +31,7 @@ async function main() {
     const catalogPath = join(process.cwd(), 'catalog', 'catalog-2026-03-16T20-49-29-911Z.json');
     const catalogData: CatalogProduct[] = JSON.parse(readFileSync(catalogPath, 'utf-8'));
 
-    console.log(`Найдено ${catalogData.length} продуктов для загрузки`);
+    console.log(`Найдено ${catalogData.length} элементов для загрузки`);
 
     const batchSize = 1000;
     let processed = 0;
@@ -45,13 +45,13 @@ async function main() {
                     ? parseInt(product.estimatedDeliveryTime) || null
                     : null;
 
-                return prisma.product.upsert({
+                return prisma.catalog.upsert({
                     where: { gtin: product.gtin },
                     update: {
                         name: product.name,
                         category: product.category || null,
                         brand: product.brand || null,
-                        lowestPriceIncShipping: product.lowestPrice || null,
+                        lowestPrice: product.lowestPrice || null,
                         unit: product.unit || null,
                         lowestPricedOfferInventory: product.lowestPricedOfferInventory || null,
                         isPreOrder: product.isPreOrder,
@@ -66,7 +66,7 @@ async function main() {
                         name: product.name,
                         category: product.category || null,
                         brand: product.brand || null,
-                        lowestPriceIncShipping: product.lowestPrice || null,
+                        lowestPrice: product.lowestPrice || null,
                         unit: product.unit || null,
                         lowestPricedOfferInventory: product.lowestPricedOfferInventory || null,
                         isPreOrder: product.isPreOrder,

@@ -2,11 +2,11 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { VisibilityState } from '@tanstack/react-table';
 
 export interface ColumnVisibilityState {
-    products: VisibilityState;
+    catalog: VisibilityState;
 }
 
 const initialState: ColumnVisibilityState = {
-    products: {},
+    catalog: {},
 };
 
 const columnVisibilitySlice = createSlice({

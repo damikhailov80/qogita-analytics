@@ -1,4 +1,4 @@
-# Qogita - Product Catalog
+# Qogita - Catalog Management
 
 Next.js приложение с PostgreSQL базой данных для управления каталогом продуктов.
 
@@ -40,13 +40,13 @@ npm run db:push
 - `npm run db:generate` - Генерация Prisma Client
 - `npm run db:studio` - GUI для просмотра данных
 
-## Структура таблицы products
+## Структура таблицы catalog
 
 - `gtin` - Уникальный идентификатор товара (GTIN)
 - `name` - Название товара
 - `category` - Категория товара
 - `brand` - Бренд товара
-- `lowestPriceIncShipping` - Минимальная цена с доставкой (€)
+- `lowestPrice` - Минимальная цена с доставкой (€)
 - `unit` - Единица измерения
 - `lowestPricedOfferInventory` - Количество товара по минимальной цене
 - `isPreOrder` - Является ли товар предзаказом
@@ -55,5 +55,3 @@ npm run db:push
 - `totalInventoryAllOffers` - Общее количество товара по всем предложениям
 - `productUrl` - URL товара
 - `imageUrl` - URL изображения товара
-- `createdAt` - Дата создания записи
-- `updatedAt` - Дата последнего обновления

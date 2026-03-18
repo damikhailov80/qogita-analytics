@@ -30,7 +30,7 @@ export function parseCSVCatalog(csvData: string): CatalogProduct[] {
             row[header] = values[index] || '';
         });
 
-        // Маппинг заголовков CSV к полям продукта
+        // Маппинг заголовков CSV к полям элемента каталога
         const gtin = row['GTIN'] || row['gtin'] || '';
         const name = row['Name'] || row['name'] || '';
         const category = row['Category'] || row['category'] || undefined;

@@ -1,7 +1,5 @@
 import type { RootState } from './store';
 
-import type { RootState } from './store';
-
 const STORAGE_KEY = 'qogita_filters_state';
 
 export const loadState = () => {

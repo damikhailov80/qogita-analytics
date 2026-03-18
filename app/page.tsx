@@ -210,10 +210,10 @@ export default function Home() {
         </div>
 
         <Link
-          href="/products"
+          href="/catalog"
           className="inline-flex h-10 items-center justify-center rounded-md bg-zinc-900 px-8 text-sm font-medium text-zinc-50 hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
         >
-          View Products
+          View Catalog
         </Link>
       </div>
     </div>

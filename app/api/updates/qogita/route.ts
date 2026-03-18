@@ -108,7 +108,7 @@ async function runUpdate() {
         await client.authenticate();
 
         // Шаг 2: Загрузка каталога
-        await updateStatus(updateRecord.id, 30, 'Загрузка каталога продуктов...');
+        await updateStatus(updateRecord.id, 30, 'Загрузка каталога...');
         const catalogCSV = await client.getCatalog();
 
         // Шаг 3: Парсинг данных
@@ -123,10 +123,10 @@ async function runUpdate() {
 
         // Шаг 4: Удаление старых данных
         await updateStatus(updateRecord.id, 60, 'Удаление старых данных...');
-        await prisma.product.deleteMany({});
+        await prisma.catalog.deleteMany({});
 
         // Шаг 5: Загрузка новых данных
-        await updateStatus(updateRecord.id, 70, `Загрузка ${products.length} продуктов...`);
+        await updateStatus(updateRecord.id, 70, `Загрузка ${products.length} элементов...`);
 
         const batchSize = 1000;
         let processed = 0;
@@ -136,7 +136,7 @@ async function runUpdate() {
 
             console.log(`[Qogita Update] Inserting batch ${i / batchSize + 1}, size: ${batch.length}`);
 
-            await prisma.product.createMany({
+            await prisma.catalog.createMany({
                 data: batch.map(product => ({
                     gtin: product.gtin,
                     name: product.name,
@@ -161,7 +161,7 @@ async function runUpdate() {
             await updateStatus(
                 updateRecord.id,
                 progress,
-                `Загружено ${processed}/${products.length} продуктов...`
+                `Загружено ${processed}/${products.length} элементов...`
             );
         }
 
@@ -172,7 +172,7 @@ async function runUpdate() {
             data: {
                 status: 'success',
                 progress: 100,
-                message: `Успешно загружено ${products.length} продуктов`,
+                message: `Успешно загружено ${products.length} элементов`,
                 updatedAt: new Date()
             }
         });

@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
     try {
-        // Получаем все бренды с количеством продуктов
-        const brands = await prisma.product.groupBy({
+        // Получаем все бренды с количеством элементов
+        const brands = await prisma.catalog.groupBy({
             by: ['brand'],
             _count: {
                 id: true,

@@ -2,9 +2,9 @@
 
 ## Endpoints
 
-### GET /api/products
+### GET /api/catalog
 
-Получение списка продуктов с пагинацией, сортировкой и фильтрацией по брендам.
+Получение списка элементов каталога с пагинацией, сортировкой и фильтрацией по брендам.
 
 #### Query параметры
 
@@ -19,18 +19,16 @@
 
 #### Доступные поля для сортировки
 
-- `id` - ID продукта
+- `id` - ID элемента
 - `name` - Название
 - `brand` - Бренд
 - `category` - Категория
 - `lowestPrice` - Минимальная цена
-- `createdAt` - Дата создания
-- `updatedAt` - Дата обновления
 
 #### Пример запроса
 
 ```bash
-GET /api/products?page=1&pageSize=20&sortField=name&sortOrder=asc&whitelist=Nike,Adidas
+GET /api/catalog?page=1&pageSize=20&sortField=name&sortOrder=asc&whitelist=Nike,Adidas
 ```
 
 #### Пример ответа
@@ -80,9 +78,9 @@ GET /api/products?page=1&pageSize=20&sortField=name&sortOrder=asc&whitelist=Nike
 
 ---
 
-### POST /api/products/search
+### POST /api/catalog/search
 
-Расширенный поиск продуктов с фильтрацией по брендам и категориям.
+Расширенный поиск элементов каталога с фильтрацией по брендам и категориям.
 
 #### Body параметры
 
@@ -112,13 +110,13 @@ GET /api/products?page=1&pageSize=20&sortField=name&sortOrder=asc&whitelist=Nike
 
 #### Пример ответа
 
-Формат ответа аналогичен GET /api/products.
+Формат ответа аналогичен GET /api/catalog.
 
 ---
 
-### POST /api/products/export
+### POST /api/catalog/export
 
-Экспорт продуктов в CSV с учётом фильтров.
+Экспорт элементов каталога в CSV с учётом фильтров.
 
 #### Body параметры
 
@@ -159,7 +157,7 @@ GET /api/products?page=1&pageSize=20&sortField=name&sortOrder=asc&whitelist=Nike
 
 ### GET /api/brands
 
-Получение списка всех брендов с количеством продуктов.
+Получение списка всех брендов с количеством элементов.
 
 #### Пример ответа
 
@@ -180,7 +178,7 @@ GET /api/products?page=1&pageSize=20&sortField=name&sortOrder=asc&whitelist=Nike
 
 ### GET /api/categories
 
-Получение списка всех категорий с количеством продуктов.
+Получение списка всех категорий с количеством элементов.
 
 #### Пример ответа
 
@@ -212,7 +210,7 @@ GET /api/products?page=1&pageSize=20&sortField=name&sortOrder=asc&whitelist=Nike
     "name": "qogita",
     "status": "success",
     "progress": 100,
-    "message": "Успешно загружено 5000 продуктов",
+    "message": "Успешно загружено 5000 элементов",
     "startedAt": "2026-03-16T20:49:29.911Z",
     "updatedAt": "2026-03-16T20:55:00.000Z"
   }
@@ -231,7 +229,7 @@ GET /api/products?page=1&pageSize=20&sortField=name&sortOrder=asc&whitelist=Nike
 {
   "status": "running",
   "progress": 75,
-  "message": "Загружено 750/1000 продуктов...",
+  "message": "Загружено 750/1000 элементов...",
   "startedAt": "2026-03-18T10:00:00.000Z",
   "updatedAt": "2026-03-18T10:05:00.000Z"
 }
@@ -248,12 +246,12 @@ GET /api/products?page=1&pageSize=20&sortField=name&sortOrder=asc&whitelist=Nike
 
 ### POST /api/updates/qogita
 
-Запуск процесса обновления каталога продуктов из Qogita API.
+Запуск процесса обновления каталога из Qogita API.
 
 #### Процесс обновления
 
 1. Аутентификация в Qogita API (10%)
-2. Загрузка каталога продуктов (30%)
+2. Загрузка каталога (30%)
 3. Парсинг CSV данных (50%)
 4. Удаление старых данных из БД (60%)
 5. Загрузка новых данных батчами по 1000 записей (70-95%)

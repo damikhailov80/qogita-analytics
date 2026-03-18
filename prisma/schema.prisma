@@ -9,7 +9,7 @@ datasource db {
   provider = "postgresql"
 }
 
-model Product {
+model Catalog {
   id                          Int      @id @default(autoincrement())
   gtin                        String   @unique @db.VarChar(14)
   name                        String   @db.Text
@@ -25,7 +25,7 @@ model Product {
   productUrl                  String?  @map("product_url") @db.Text
   imageUrl                    String?  @map("image_url") @db.Text
 
-  @@map("products")
+  @@map("catalog")
 }
 
 model Update {

@@ -8,7 +8,7 @@ export function Navigation() {
 
     const links = [
         { href: '/', label: 'Home' },
-        { href: '/products', label: 'Products' },
+        { href: '/catalog', label: 'Catalog' },
     ];
 
     return (
@@ -24,8 +24,8 @@ export function Navigation() {
                                 key={link.href}
                                 href={link.href}
                                 className={`text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-zinc-50 ${pathname === link.href
-                                        ? 'text-zinc-900 dark:text-zinc-50'
-                                        : 'text-zinc-600 dark:text-zinc-400'
+                                    ? 'text-zinc-900 dark:text-zinc-50'
+                                    : 'text-zinc-600 dark:text-zinc-400'
                                     }`}
                             >
                                 {link.label}
