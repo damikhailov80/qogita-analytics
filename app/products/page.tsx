@@ -261,23 +261,26 @@ export default function ProductsPage() {
                 const sortOrder = sorting[0]?.desc ? 'desc' : 'asc';
                 const page = pagination.pageIndex + 1;
 
-                // Добавляем фильтр по брендам в URL
-                const params = new URLSearchParams({
-                    page: page.toString(),
-                    pageSize: pagination.pageSize.toString(),
-                    sortField,
-                    sortOrder,
+                // Отправляем все параметры в теле POST запроса
+                const response = await fetch('/api/products/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        page: page.toString(),
+                        pageSize: pagination.pageSize.toString(),
+                        sortField,
+                        sortOrder,
+                        whitelist: whiteListBrands,
+                        blacklist: blackListBrands,
+                    }),
                 });
 
-                if (whiteListBrands.length > 0) {
-                    params.append('whitelist', whiteListBrands.join(','));
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                if (blackListBrands.length > 0) {
-                    params.append('blacklist', blackListBrands.join(','));
-                }
-
-                const response = await fetch(`/api/products?${params.toString()}`);
                 const result: ApiResponse = await response.json();
 
                 setData(result.data);
