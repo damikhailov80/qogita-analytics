@@ -22,6 +22,12 @@ export async function GET(request: NextRequest) {
         const sortField = (searchParams.get('sortField') || 'id') as SortField;
         const sortOrder = (searchParams.get('sortOrder') || 'asc') as SortOrder;
 
+        // Получаем фильтры по брендам
+        const whitelistParam = searchParams.get('whitelist');
+        const blacklistParam = searchParams.get('blacklist');
+        const whiteListBrands = whitelistParam ? whitelistParam.split(',').filter(Boolean) : [];
+        const blackListBrands = blacklistParam ? blacklistParam.split(',').filter(Boolean) : [];
+
         // Валидация поля сортировки - проверяем что это валидное поле Product
         const validSortFields = Object.keys(prisma.product.fields);
 
@@ -40,12 +46,37 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Подсчет общего количества продуктов
-        const totalCount = await prisma.product.count();
+        // Создаем условие фильтрации
+        const whereCondition: Prisma.ProductWhereInput = {};
+
+        // Применяем фильтры по брендам
+        if (whiteListBrands.length > 0 && blackListBrands.length > 0) {
+            // Если есть и белый и черный список - показываем только бренды из белого списка, исключая черный
+            whereCondition.brand = {
+                in: whiteListBrands,
+                notIn: blackListBrands,
+            };
+        } else if (whiteListBrands.length > 0) {
+            // Только белый список - показываем только эти бренды
+            whereCondition.brand = {
+                in: whiteListBrands,
+            };
+        } else if (blackListBrands.length > 0) {
+            // Только черный список - исключаем эти бренды
+            whereCondition.brand = {
+                notIn: blackListBrands,
+            };
+        }
+
+        // Подсчет общего количества продуктов с учетом фильтров
+        const totalCount = await prisma.product.count({
+            where: whereCondition,
+        });
         const totalPages = Math.ceil(totalCount / pageSize);
 
-        // Получение продуктов с пагинацией и сортировкой
+        // Получение продуктов с пагинацией, сортировкой и фильтрацией
         const products = await prisma.product.findMany({
+            where: whereCondition,
             skip: (page - 1) * pageSize,
             take: pageSize,
             orderBy: {
@@ -66,6 +97,10 @@ export async function GET(request: NextRequest) {
             sort: {
                 field: sortField,
                 order: sortOrder,
+            },
+            filters: {
+                whitelist: whiteListBrands,
+                blacklist: blackListBrands,
             },
         });
     } catch (error) {

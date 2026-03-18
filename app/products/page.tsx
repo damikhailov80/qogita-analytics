@@ -10,16 +10,10 @@ import {
     type ColumnDef,
     type SortingState,
     type ColumnSizingState,
+    type VisibilityState,
 } from '@tanstack/react-table';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { BrandFilter } from '@/components/brand-filter';
 
 type Product = {
     id: number;
@@ -55,6 +49,11 @@ export default function ProductsPage() {
     const [loading, setLoading] = useState(true);
     const [sorting, setSorting] = useState<SortingState>([]);
     const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
+    const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+    const [showColumnToggle, setShowColumnToggle] = useState(false);
+    const [showBrandFilter, setShowBrandFilter] = useState(false);
+    const [whiteListBrands, setWhiteListBrands] = useState<string[]>([]);
+    const [blackListBrands, setBlackListBrands] = useState<string[]>([]);
     const [pagination, setPagination] = useState({
         pageIndex: 0,
         pageSize: 20,
@@ -69,6 +68,7 @@ export default function ProductsPage() {
             minSize: 60,
             maxSize: 150,
             enableResizing: true,
+            enableHiding: true,
             cell: ({ row }) => {
                 const imageUrl = row.getValue('imageUrl') as string | null;
                 return imageUrl ? (
@@ -84,6 +84,7 @@ export default function ProductsPage() {
             size: 140,
             minSize: 100,
             enableResizing: true,
+            enableHiding: true,
             cell: ({ row }) => <div className="font-mono text-sm truncate" title={row.getValue('gtin')}>{row.getValue('gtin')}</div>,
         },
         {
@@ -92,6 +93,7 @@ export default function ProductsPage() {
             size: 250,
             minSize: 150,
             enableResizing: true,
+            enableHiding: false, // Всегда показываем название продукта
             cell: ({ row }) => <div className="font-medium truncate" title={row.getValue('name')}>{row.getValue('name')}</div>,
         },
         {
@@ -100,6 +102,7 @@ export default function ProductsPage() {
             size: 120,
             minSize: 80,
             enableResizing: true,
+            enableHiding: true,
             cell: ({ row }) => {
                 const brand = row.getValue('brand') as string | null;
                 return <div className="truncate" title={brand || '-'}>{brand || '-'}</div>;
@@ -111,6 +114,7 @@ export default function ProductsPage() {
             size: 150,
             minSize: 100,
             enableResizing: true,
+            enableHiding: true,
             cell: ({ row }) => {
                 const category = row.getValue('category') as string | null;
                 return <div className="truncate" title={category || '-'}>{category || '-'}</div>;
@@ -122,6 +126,7 @@ export default function ProductsPage() {
             size: 100,
             minSize: 80,
             enableResizing: true,
+            enableHiding: true,
             cell: ({ row }) => {
                 const price = row.getValue('lowestPriceIncShipping') as number | string | null;
                 return price ? (
@@ -137,6 +142,7 @@ export default function ProductsPage() {
             size: 80,
             minSize: 60,
             enableResizing: true,
+            enableHiding: true,
             cell: ({ row }) => <div className="text-sm truncate">{row.getValue('unit') || '-'}</div>,
         },
         {
@@ -145,6 +151,7 @@ export default function ProductsPage() {
             size: 120,
             minSize: 100,
             enableResizing: true,
+            enableHiding: true,
             cell: ({ row }) => {
                 const inventory = row.getValue('lowestPricedOfferInventory') as number | null;
                 return <div className="text-right">{inventory ?? '-'}</div>;
@@ -156,6 +163,7 @@ export default function ProductsPage() {
             size: 120,
             minSize: 100,
             enableResizing: true,
+            enableHiding: true,
             cell: ({ row }) => {
                 const inventory = row.getValue('totalInventoryAllOffers') as number | null;
                 return <div className="text-right">{inventory ?? '-'}</div>;
@@ -167,6 +175,7 @@ export default function ProductsPage() {
             size: 80,
             minSize: 60,
             enableResizing: true,
+            enableHiding: true,
             cell: ({ row }) => {
                 const offers = row.getValue('numberOfOffers') as number | null;
                 return <div className="text-right">{offers ?? '-'}</div>;
@@ -178,6 +187,7 @@ export default function ProductsPage() {
             size: 90,
             minSize: 70,
             enableResizing: true,
+            enableHiding: true,
             cell: ({ row }) => {
                 const isPreOrder = row.getValue('isPreOrder') as boolean;
                 return (
@@ -197,6 +207,7 @@ export default function ProductsPage() {
             size: 120,
             minSize: 100,
             enableResizing: true,
+            enableHiding: true,
             cell: ({ row }) => {
                 const weeks = row.getValue('estimatedDeliveryTimeWeeks') as number | null;
                 return <div className="text-sm">{weeks ? `${weeks}` : '-'}</div>;
@@ -208,6 +219,7 @@ export default function ProductsPage() {
             size: 80,
             minSize: 60,
             enableResizing: true,
+            enableHiding: true,
             cell: ({ row }) => {
                 const url = row.getValue('productUrl') as string | null;
                 return url ? (
@@ -229,9 +241,23 @@ export default function ProductsPage() {
                 const sortOrder = sorting[0]?.desc ? 'desc' : 'asc';
                 const page = pagination.pageIndex + 1;
 
-                const response = await fetch(
-                    `/api/products?page=${page}&pageSize=${pagination.pageSize}&sortField=${sortField}&sortOrder=${sortOrder}`
-                );
+                // Добавляем фильтр по брендам в URL
+                const params = new URLSearchParams({
+                    page: page.toString(),
+                    pageSize: pagination.pageSize.toString(),
+                    sortField,
+                    sortOrder,
+                });
+
+                if (whiteListBrands.length > 0) {
+                    params.append('whitelist', whiteListBrands.join(','));
+                }
+
+                if (blackListBrands.length > 0) {
+                    params.append('blacklist', blackListBrands.join(','));
+                }
+
+                const response = await fetch(`/api/products?${params.toString()}`);
                 const result: ApiResponse = await response.json();
 
                 setData(result.data);
@@ -244,7 +270,7 @@ export default function ProductsPage() {
         };
 
         fetchProducts();
-    }, [pagination.pageIndex, pagination.pageSize, sorting]);
+    }, [pagination.pageIndex, pagination.pageSize, sorting, whiteListBrands, blackListBrands]);
 
     const table = useReactTable({
         data,
@@ -255,6 +281,7 @@ export default function ProductsPage() {
         onSortingChange: setSorting,
         onPaginationChange: setPagination,
         onColumnSizingChange: setColumnSizing,
+        onColumnVisibilityChange: setColumnVisibility,
         columnResizeMode: 'onChange',
         manualPagination: true,
         manualSorting: true,
@@ -263,12 +290,107 @@ export default function ProductsPage() {
             sorting,
             pagination,
             columnSizing,
+            columnVisibility,
         },
     });
 
     return (
         <div className="w-full py-10 px-4">
-            <h1 className="text-3xl font-bold mb-6">Products</h1>
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h1 className="text-3xl font-bold">Products</h1>
+                    {(whiteListBrands.length > 0 || blackListBrands.length > 0) && (
+                        <p className="text-sm text-gray-600 mt-1">
+                            {whiteListBrands.length > 0 && `Белый список: ${whiteListBrands.length}`}
+                            {whiteListBrands.length > 0 && blackListBrands.length > 0 && ' | '}
+                            {blackListBrands.length > 0 && `Черный список: ${blackListBrands.length}`}
+                        </p>
+                    )}
+                </div>
+                <div className="flex gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={() => setShowBrandFilter(!showBrandFilter)}
+                    >
+                        {showBrandFilter ? 'Скрыть' : 'Показать'} фильтр брендов
+                        {(whiteListBrands.length > 0 || blackListBrands.length > 0) && (
+                            <span className="ml-1 px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">
+                                {whiteListBrands.length + blackListBrands.length}
+                            </span>
+                        )}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => setShowColumnToggle(!showColumnToggle)}
+                    >
+                        {showColumnToggle ? 'Hide' : 'Show'} Columns
+                    </Button>
+                </div>
+            </div>
+
+            {/* Фильтр по брендам */}
+            {showBrandFilter && (
+                <div className="mb-6">
+                    <BrandFilter
+                        onFilterChange={(whiteList, blackList) => {
+                            setWhiteListBrands(whiteList);
+                            setBlackListBrands(blackList);
+                            // Сбрасываем пагинацию при изменении фильтра
+                            setPagination(prev => ({ ...prev, pageIndex: 0 }));
+                        }}
+                        className="w-full"
+                    />
+                </div>
+            )}
+
+            {showColumnToggle && (
+                <div className="mb-4 p-4 border rounded-lg bg-gray-50">
+                    <h3 className="text-sm font-medium mb-3">Toggle Columns</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                        {table
+                            .getAllColumns()
+                            .filter((column) => column.getCanHide())
+                            .map((column) => {
+                                return (
+                                    <label
+                                        key={column.id}
+                                        className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-gray-100 p-2 rounded"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={column.getIsVisible()}
+                                            onChange={(e) =>
+                                                column.toggleVisibility(e.target.checked)
+                                            }
+                                            className="rounded border-gray-300"
+                                        />
+                                        <span className="capitalize">
+                                            {typeof column.columnDef.header === 'string'
+                                                ? column.columnDef.header
+                                                : column.id}
+                                        </span>
+                                    </label>
+                                );
+                            })}
+                    </div>
+                    <div className="mt-3 pt-3 border-t flex gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => table.toggleAllColumnsVisible(true)}
+                        >
+                            Show All
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => table.toggleAllColumnsVisible(false)}
+                        >
+                            Hide All
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             <div className="rounded-md border w-full overflow-hidden">
                 <div className="overflow-auto w-full">
