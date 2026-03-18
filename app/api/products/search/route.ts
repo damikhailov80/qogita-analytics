@@ -13,6 +13,8 @@ export async function POST(request: NextRequest) {
             sortOrder: body.sortOrder || 'asc',
             whitelist: Array.isArray(body.whitelist) ? body.whitelist : [],
             blacklist: Array.isArray(body.blacklist) ? body.blacklist : [],
+            categoryWhitelist: Array.isArray(body.categoryWhitelist) ? body.categoryWhitelist : [],
+            categoryBlacklist: Array.isArray(body.categoryBlacklist) ? body.categoryBlacklist : [],
         };
 
         return await handleProductSearch(params);

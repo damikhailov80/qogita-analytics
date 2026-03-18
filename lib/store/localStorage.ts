@@ -1,8 +1,10 @@
 import type { RootState } from './store';
 
+import type { RootState } from './store';
+
 const STORAGE_KEY = 'qogita_filters_state';
 
-export const loadState = (): Partial<RootState> | undefined => {
+export const loadState = () => {
     try {
         if (typeof window === 'undefined') {
             return undefined;
@@ -19,7 +21,7 @@ export const loadState = (): Partial<RootState> | undefined => {
     }
 };
 
-export const saveState = (state: RootState): void => {
+export const saveState = (state: any): void => {
     try {
         if (typeof window === 'undefined') {
             return;

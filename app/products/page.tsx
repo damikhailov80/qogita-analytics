@@ -14,6 +14,7 @@ import {
 } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { BrandFilterModal } from '@/components/brand-filter-modal';
+import { CategoryFilterModal } from '@/components/category-filter-modal';
 import { ColumnVisibilityModal } from '@/components/column-visibility-modal';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { setColumnVisibility } from '@/lib/store/columnVisibilitySlice';
@@ -55,6 +56,7 @@ export default function ProductsPage() {
     const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
     const [showColumnModal, setShowColumnModal] = useState(false);
     const [showBrandFilter, setShowBrandFilter] = useState(false);
+    const [showCategoryFilter, setShowCategoryFilter] = useState(false);
     const [pagination, setPagination] = useState({
         pageIndex: 0,
         pageSize: 20,
@@ -65,6 +67,8 @@ export default function ProductsPage() {
     // Читаем фильтры из Redux
     const whiteListBrands = useAppSelector((state) => state.filters.brands.whiteList);
     const blackListBrands = useAppSelector((state) => state.filters.brands.blackList);
+    const whiteListCategories = useAppSelector((state) => state.filters.categories.whiteList);
+    const blackListCategories = useAppSelector((state) => state.filters.categories.blackList);
 
     // Читаем видимость колонок из Redux
     const columnVisibility = useAppSelector((state) => state.columnVisibility.products);
@@ -274,6 +278,8 @@ export default function ProductsPage() {
                         sortOrder,
                         whitelist: whiteListBrands,
                         blacklist: blackListBrands,
+                        categoryWhitelist: whiteListCategories,
+                        categoryBlacklist: blackListCategories,
                     }),
                 });
 
@@ -293,7 +299,7 @@ export default function ProductsPage() {
         };
 
         fetchProducts();
-    }, [pagination.pageIndex, pagination.pageSize, sorting, whiteListBrands, blackListBrands]);
+    }, [pagination.pageIndex, pagination.pageSize, sorting, whiteListBrands, blackListBrands, whiteListCategories, blackListCategories]);
 
     const table = useReactTable({
         data,
@@ -330,6 +336,9 @@ export default function ProductsPage() {
                             Фильтр брендов
                         </Button>
                         <Button variant="outline" disabled>
+                            Фильтр категорий
+                        </Button>
+                        <Button variant="outline" disabled>
                             Показать колонки
                         </Button>
                     </div>
@@ -348,11 +357,15 @@ export default function ProductsPage() {
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h1 className="text-3xl font-bold">Products</h1>
-                    {(whiteListBrands.length > 0 || blackListBrands.length > 0) && (
+                    {(whiteListBrands.length > 0 || blackListBrands.length > 0 || whiteListCategories.length > 0 || blackListCategories.length > 0) && (
                         <p className="text-sm text-gray-600 mt-1">
-                            {whiteListBrands.length > 0 && `Белый список: ${whiteListBrands.length}`}
+                            {whiteListBrands.length > 0 && `Бренды (белый): ${whiteListBrands.length}`}
                             {whiteListBrands.length > 0 && blackListBrands.length > 0 && ' | '}
-                            {blackListBrands.length > 0 && `Черный список: ${blackListBrands.length}`}
+                            {blackListBrands.length > 0 && `Бренды (черный): ${blackListBrands.length}`}
+                            {(whiteListBrands.length > 0 || blackListBrands.length > 0) && (whiteListCategories.length > 0 || blackListCategories.length > 0) && ' | '}
+                            {whiteListCategories.length > 0 && `Категории (белый): ${whiteListCategories.length}`}
+                            {whiteListCategories.length > 0 && blackListCategories.length > 0 && ' | '}
+                            {blackListCategories.length > 0 && `Категории (черный): ${blackListCategories.length}`}
                         </p>
                     )}
                 </div>
@@ -370,6 +383,17 @@ export default function ProductsPage() {
                     </Button>
                     <Button
                         variant="outline"
+                        onClick={() => setShowCategoryFilter(true)}
+                    >
+                        Фильтр категорий
+                        {(whiteListCategories.length > 0 || blackListCategories.length > 0) && (
+                            <span className="ml-1 px-2 py-0.5 bg-green-500 text-white text-xs rounded-full">
+                                {whiteListCategories.length + blackListCategories.length}
+                            </span>
+                        )}
+                    </Button>
+                    <Button
+                        variant="outline"
                         onClick={() => setShowColumnModal(true)}
                     >
                         Показать колонки
@@ -381,6 +405,16 @@ export default function ProductsPage() {
             <BrandFilterModal
                 isOpen={showBrandFilter}
                 onClose={() => setShowBrandFilter(false)}
+                onFilterChange={() => {
+                    // Сбрасываем пагинацию при изменении фильтра
+                    setPagination(prev => ({ ...prev, pageIndex: 0 }));
+                }}
+            />
+
+            {/* Фильтр по категориям в модальном окне */}
+            <CategoryFilterModal
+                isOpen={showCategoryFilter}
+                onClose={() => setShowCategoryFilter(false)}
                 onFilterChange={() => {
                     // Сбрасываем пагинацию при изменении фильтра
                     setPagination(prev => ({ ...prev, pageIndex: 0 }));

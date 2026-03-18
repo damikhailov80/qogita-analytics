@@ -15,6 +15,8 @@ export interface ProductSearchParams {
     sortOrder: string;
     whitelist: string[];
     blacklist: string[];
+    categoryWhitelist?: string[];
+    categoryBlacklist?: string[];
 }
 
 export { MAX_PAGE_SIZE, DEFAULT_PAGE_SIZE };
@@ -33,6 +35,10 @@ export async function handleProductSearch(params: ProductSearchParams) {
     // Получаем фильтры по брендам
     const whiteListBrands = params.whitelist || [];
     const blackListBrands = params.blacklist || [];
+
+    // Получаем фильтры по категориям
+    const whiteListCategories = params.categoryWhitelist || [];
+    const blackListCategories = params.categoryBlacklist || [];
 
     // Валидация поля сортировки
     const validSortFields = [
@@ -76,6 +82,22 @@ export async function handleProductSearch(params: ProductSearchParams) {
         };
     }
 
+    // Применяем фильтры по категориям
+    if (whiteListCategories.length > 0 && blackListCategories.length > 0) {
+        whereCondition.category = {
+            in: whiteListCategories,
+            notIn: blackListCategories,
+        };
+    } else if (whiteListCategories.length > 0) {
+        whereCondition.category = {
+            in: whiteListCategories,
+        };
+    } else if (blackListCategories.length > 0) {
+        whereCondition.category = {
+            notIn: blackListCategories,
+        };
+    }
+
     // Подсчет общего количества продуктов с учетом фильтров
     const totalCount = await prisma.product.count({
         where: whereCondition,
@@ -92,11 +114,8 @@ export async function handleProductSearch(params: ProductSearchParams) {
         },
     });
 
-    // Преобразуем lowestPrice в lowestPriceIncShipping для совместимости с фронтендом
-    const productsWithPrice = products.map(product => ({
-        ...product,
-        lowestPriceIncShipping: product.lowestPrice,
-    }));
+    // Возвращаем продукты как есть
+    const productsWithPrice = products;
 
     return NextResponse.json({
         data: productsWithPrice,
@@ -113,8 +132,14 @@ export async function handleProductSearch(params: ProductSearchParams) {
             order: sortOrder,
         },
         filters: {
-            whitelist: whiteListBrands,
-            blacklist: blackListBrands,
+            brands: {
+                whitelist: whiteListBrands,
+                blacklist: blackListBrands,
+            },
+            categories: {
+                whitelist: whiteListCategories,
+                blacklist: blackListCategories,
+            },
         },
     });
 }

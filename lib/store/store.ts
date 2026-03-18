@@ -3,14 +3,12 @@ import filterReducer from './filterSlice';
 import columnVisibilityReducer from './columnVisibilitySlice';
 import { loadState, saveState } from './localStorage';
 
-const preloadedState = loadState();
-
 export const store = configureStore({
     reducer: {
         filters: filterReducer,
         columnVisibility: columnVisibilityReducer,
     },
-    preloadedState,
+    preloadedState: loadState(),
 });
 
 // Сохраняем состояние в localStorage при каждом изменении
