@@ -31,6 +31,10 @@ model Product {
 model Update {
   id        Int      @id @default(autoincrement())
   name      String   @db.Text
+  status    String   @default("idle") @db.VarChar(50) // idle, running, success, error
+  progress  Int      @default(0) // 0-100
+  message   String?  @db.Text
+  startedAt DateTime? @map("started_at")
   updatedAt DateTime @default(now()) @map("updated_at")
 
   @@map("updates")
