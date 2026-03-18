@@ -19,7 +19,58 @@ export interface ProductSearchParams {
     categoryBlacklist?: string[];
 }
 
+export interface ProductFilterParams {
+    whitelist: string[];
+    blacklist: string[];
+    categoryWhitelist?: string[];
+    categoryBlacklist?: string[];
+}
+
 export { MAX_PAGE_SIZE, DEFAULT_PAGE_SIZE };
+
+// Общая функция для создания условий фильтрации
+export function buildWhereCondition(params: ProductFilterParams): Prisma.ProductWhereInput {
+    const whereCondition: Prisma.ProductWhereInput = {};
+
+    const whiteListBrands = params.whitelist || [];
+    const blackListBrands = params.blacklist || [];
+    const whiteListCategories = params.categoryWhitelist || [];
+    const blackListCategories = params.categoryBlacklist || [];
+
+    // Применяем фильтры по брендам
+    if (whiteListBrands.length > 0 && blackListBrands.length > 0) {
+        whereCondition.brand = {
+            in: whiteListBrands,
+            notIn: blackListBrands,
+        };
+    } else if (whiteListBrands.length > 0) {
+        whereCondition.brand = {
+            in: whiteListBrands,
+        };
+    } else if (blackListBrands.length > 0) {
+        whereCondition.brand = {
+            notIn: blackListBrands,
+        };
+    }
+
+    // Применяем фильтры по категориям
+    if (whiteListCategories.length > 0 && blackListCategories.length > 0) {
+        whereCondition.category = {
+            in: whiteListCategories,
+            notIn: blackListCategories,
+        };
+    } else if (whiteListCategories.length > 0) {
+        whereCondition.category = {
+            in: whiteListCategories,
+        };
+    } else if (blackListCategories.length > 0) {
+        whereCondition.category = {
+            notIn: blackListCategories,
+        };
+    }
+
+    return whereCondition;
+}
 
 // Общая функция для обработки запросов продуктов
 export async function handleProductSearch(params: ProductSearchParams) {
@@ -63,40 +114,13 @@ export async function handleProductSearch(params: ProductSearchParams) {
         );
     }
 
-    // Создаем условие фильтрации
-    const whereCondition: Prisma.ProductWhereInput = {};
-
-    // Применяем фильтры по брендам
-    if (whiteListBrands.length > 0 && blackListBrands.length > 0) {
-        whereCondition.brand = {
-            in: whiteListBrands,
-            notIn: blackListBrands,
-        };
-    } else if (whiteListBrands.length > 0) {
-        whereCondition.brand = {
-            in: whiteListBrands,
-        };
-    } else if (blackListBrands.length > 0) {
-        whereCondition.brand = {
-            notIn: blackListBrands,
-        };
-    }
-
-    // Применяем фильтры по категориям
-    if (whiteListCategories.length > 0 && blackListCategories.length > 0) {
-        whereCondition.category = {
-            in: whiteListCategories,
-            notIn: blackListCategories,
-        };
-    } else if (whiteListCategories.length > 0) {
-        whereCondition.category = {
-            in: whiteListCategories,
-        };
-    } else if (blackListCategories.length > 0) {
-        whereCondition.category = {
-            notIn: blackListCategories,
-        };
-    }
+    // Создаем условие фильтрации используя общую функцию
+    const whereCondition = buildWhereCondition({
+        whitelist: params.whitelist,
+        blacklist: params.blacklist,
+        categoryWhitelist: params.categoryWhitelist,
+        categoryBlacklist: params.categoryBlacklist,
+    });
 
     // Подсчет общего количества продуктов с учетом фильтров
     const totalCount = await prisma.product.count({

@@ -323,6 +323,45 @@ export default function ProductsPage() {
         },
     });
 
+    const handleExportCSV = async () => {
+        try {
+            const response = await fetch('/api/products/export', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    whitelist: whiteListBrands,
+                    blacklist: blackListBrands,
+                    categoryWhitelist: whiteListCategories,
+                    categoryBlacklist: blackListCategories,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            // Получаем blob из ответа
+            const blob = await response.blob();
+
+            // Создаем ссылку для скачивания
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `products-export-${new Date().toISOString().replace(/:/g, '-')}.csv`;
+            document.body.appendChild(a);
+            a.click();
+
+            // Очищаем
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Error exporting CSV:', error);
+            alert('Ошибка при экспорте CSV');
+        }
+    };
+
     // Don't render table until mounted to avoid hydration mismatch
     if (!isMounted) {
         return (
@@ -340,6 +379,9 @@ export default function ProductsPage() {
                         </Button>
                         <Button variant="outline" disabled>
                             Показать колонки
+                        </Button>
+                        <Button variant="outline" disabled>
+                            Экспорт CSV
                         </Button>
                     </div>
                 </div>
@@ -397,6 +439,12 @@ export default function ProductsPage() {
                         onClick={() => setShowColumnModal(true)}
                     >
                         Показать колонки
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={handleExportCSV}
+                    >
+                        Экспорт CSV
                     </Button>
                 </div>
             </div>
