@@ -12,7 +12,8 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "csv-to-json": "tsx scripts/csv-to-json.ts",
-    "seed": "tsx scripts/seed-products.ts"
+    "seed": "tsx scripts/seed-products.ts",
+    "fetch-offers": "tsx scripts/fetch-offers.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.5.0",
