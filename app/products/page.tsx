@@ -14,6 +14,9 @@ import {
 } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { BrandFilterModal } from '@/components/brand-filter-modal';
+import { ColumnVisibilityModal } from '@/components/column-visibility-modal';
+import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
+import { setColumnVisibility } from '@/lib/store/columnVisibilitySlice';
 
 type Product = {
     id: number;
@@ -45,20 +48,37 @@ type ApiResponse = {
 };
 
 export default function ProductsPage() {
+    const dispatch = useAppDispatch();
     const [data, setData] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [sorting, setSorting] = useState<SortingState>([]);
     const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
-    const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-    const [showColumnToggle, setShowColumnToggle] = useState(false);
+    const [showColumnModal, setShowColumnModal] = useState(false);
     const [showBrandFilter, setShowBrandFilter] = useState(false);
-    const [whiteListBrands, setWhiteListBrands] = useState<string[]>([]);
-    const [blackListBrands, setBlackListBrands] = useState<string[]>([]);
     const [pagination, setPagination] = useState({
         pageIndex: 0,
         pageSize: 20,
     });
     const [totalPages, setTotalPages] = useState(0);
+    const [isMounted, setIsMounted] = useState(false);
+
+    // Читаем фильтры из Redux
+    const whiteListBrands = useAppSelector((state) => state.filters.brands.whiteList);
+    const blackListBrands = useAppSelector((state) => state.filters.brands.blackList);
+
+    // Читаем видимость колонок из Redux
+    const columnVisibility = useAppSelector((state) => state.columnVisibility.products);
+
+    // Ensure component is mounted before showing Redux-dependent content
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+    // Обработчик изменения видимости колонок
+    const handleColumnVisibilityChange = (updater: VisibilityState | ((old: VisibilityState) => VisibilityState)) => {
+        const newVisibility = typeof updater === 'function' ? updater(columnVisibility) : updater;
+        dispatch(setColumnVisibility({ table: 'products', visibility: newVisibility }));
+    };
 
     const columns: ColumnDef<Product>[] = [
         {
@@ -281,7 +301,7 @@ export default function ProductsPage() {
         onSortingChange: setSorting,
         onPaginationChange: setPagination,
         onColumnSizingChange: setColumnSizing,
-        onColumnVisibilityChange: setColumnVisibility,
+        onColumnVisibilityChange: handleColumnVisibilityChange,
         columnResizeMode: 'onChange',
         manualPagination: true,
         manualSorting: true,
@@ -293,6 +313,32 @@ export default function ProductsPage() {
             columnVisibility,
         },
     });
+
+    // Don't render table until mounted to avoid hydration mismatch
+    if (!isMounted) {
+        return (
+            <div className="w-full py-10 px-4">
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h1 className="text-3xl font-bold">Products</h1>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button variant="outline" disabled>
+                            Фильтр брендов
+                        </Button>
+                        <Button variant="outline" disabled>
+                            Показать колонки
+                        </Button>
+                    </div>
+                </div>
+                <div className="rounded-md border w-full overflow-hidden">
+                    <div className="h-24 flex items-center justify-center">
+                        Loading...
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full py-10 px-4">
@@ -321,9 +367,9 @@ export default function ProductsPage() {
                     </Button>
                     <Button
                         variant="outline"
-                        onClick={() => setShowColumnToggle(!showColumnToggle)}
+                        onClick={() => setShowColumnModal(true)}
                     >
-                        {showColumnToggle ? 'Hide' : 'Show'} Columns
+                        Показать колонки
                     </Button>
                 </div>
             </div>
@@ -332,62 +378,18 @@ export default function ProductsPage() {
             <BrandFilterModal
                 isOpen={showBrandFilter}
                 onClose={() => setShowBrandFilter(false)}
-                onFilterChange={(whiteList, blackList) => {
-                    setWhiteListBrands(whiteList);
-                    setBlackListBrands(blackList);
+                onFilterChange={() => {
                     // Сбрасываем пагинацию при изменении фильтра
                     setPagination(prev => ({ ...prev, pageIndex: 0 }));
                 }}
             />
 
-            {showColumnToggle && (
-                <div className="mb-4 p-4 border rounded-lg bg-gray-50">
-                    <h3 className="text-sm font-medium mb-3">Toggle Columns</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                        {table
-                            .getAllColumns()
-                            .filter((column) => column.getCanHide())
-                            .map((column) => {
-                                return (
-                                    <label
-                                        key={column.id}
-                                        className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-gray-100 p-2 rounded"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={column.getIsVisible()}
-                                            onChange={(e) =>
-                                                column.toggleVisibility(e.target.checked)
-                                            }
-                                            className="rounded border-gray-300"
-                                        />
-                                        <span className="capitalize">
-                                            {typeof column.columnDef.header === 'string'
-                                                ? column.columnDef.header
-                                                : column.id}
-                                        </span>
-                                    </label>
-                                );
-                            })}
-                    </div>
-                    <div className="mt-3 pt-3 border-t flex gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => table.toggleAllColumnsVisible(true)}
-                        >
-                            Show All
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => table.toggleAllColumnsVisible(false)}
-                        >
-                            Hide All
-                        </Button>
-                    </div>
-                </div>
-            )}
+            {/* Модальное окно для показа/скрытия колонок */}
+            <ColumnVisibilityModal
+                isOpen={showColumnModal}
+                onClose={() => setShowColumnModal(false)}
+                table={table}
+            />
 
             <div className="rounded-md border w-full overflow-hidden">
                 <div className="overflow-auto w-full">
