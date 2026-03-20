@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 
-interface UploadStatus {
+interface UpdateStatus {
     state: string;
     progress: number;
     logs: string[];
@@ -10,12 +10,10 @@ interface UploadStatus {
     error?: string;
 }
 
-export default function AllegroUpload() {
-    const [file, setFile] = useState<File | null>(null);
-    const [uploading, setUploading] = useState(false);
-    const [status, setStatus] = useState<UploadStatus | null>(null);
+export default function QogitaUpdate() {
+    const [updating, setUpdating] = useState(false);
+    const [status, setStatus] = useState<UpdateStatus | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
     const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // Загружаем последний лог при монтировании
@@ -25,7 +23,7 @@ export default function AllegroUpload() {
 
     const fetchLastLog = async () => {
         try {
-            const response = await fetch('/api/logs/allegro');
+            const response = await fetch('/api/logs/qogita');
             if (response.ok) {
                 const logs = await response.json();
                 if (logs.length > 0) {
@@ -50,28 +48,12 @@ export default function AllegroUpload() {
         }
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile && selectedFile.name.endsWith('.csv')) {
-            setFile(selectedFile);
-            setError(null);
-        } else {
-            setError('Пожалуйста, выберите CSV файл');
-            setFile(null);
-        }
-    };
-
-    const handleUpload = async () => {
-        if (!file) {
-            setError('Выберите файл для загрузки');
-            return;
-        }
-
+    const handleUpdate = async () => {
         // Предупреждение о длительной операции и удалении данных
         if (!confirm(
             '⚠️ ВНИМАНИЕ!\n\n' +
-            '• Все существующие товары Allegro будут удалены из базы данных\n' +
-            '• Обработка файла может занять продолжительное время\n' +
+            '• Все существующие товары Qogita будут удалены из базы данных\n' +
+            '• Обновление может занять продолжительное время\n' +
             '• Не закрывайте страницу до завершения операции\n\n' +
             'Продолжить?'
         )) {
@@ -79,29 +61,25 @@ export default function AllegroUpload() {
         }
 
         try {
-            setUploading(true);
+            setUpdating(true);
             setError(null);
             setStatus(null);
 
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await fetch('/api/products/allegro/upload', {
+            const response = await fetch('/api/products/qogita/update', {
                 method: 'POST',
-                body: formData,
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Ошибка загрузки файла');
+                throw new Error(data.error || 'Ошибка запуска обновления');
             }
 
             // Начинаем опрос статуса
             pollStatus();
         } catch (err: any) {
-            setError(err.message || 'Ошибка при загрузке файла');
-            setUploading(false);
+            setError(err.message || 'Ошибка при запуске обновления');
+            setUpdating(false);
         }
     };
 
@@ -112,24 +90,27 @@ export default function AllegroUpload() {
 
         pollIntervalRef.current = setInterval(async () => {
             try {
-                const response = await fetch('/api/products/allegro/upload');
-                const data = await response.json();
+                const response = await fetch('/api/products/qogita/update');
 
+                if (!response.ok) {
+                    // Если задача не найдена, продолжаем опрос
+                    if (response.status === 404) {
+                        return;
+                    }
+                    throw new Error('Ошибка получения статуса');
+                }
+
+                const data = await response.json();
                 setStatus(data);
 
                 if (data.state === 'completed') {
                     clearInterval(pollIntervalRef.current!);
-                    setUploading(false);
+                    setUpdating(false);
                     pollIntervalRef.current = null;
-                    // Очищаем выбранный файл после успешной загрузки
-                    setFile(null);
-                    if (fileInputRef.current) {
-                        fileInputRef.current.value = '';
-                    }
                 } else if (data.state === 'failed') {
                     clearInterval(pollIntervalRef.current!);
-                    setUploading(false);
-                    setError(data.error || 'Ошибка обработки файла');
+                    setUpdating(false);
+                    setError(data.error || 'Ошибка обновления');
                     pollIntervalRef.current = null;
                 }
             } catch (err) {
@@ -142,34 +123,17 @@ export default function AllegroUpload() {
             if (pollIntervalRef.current) {
                 clearInterval(pollIntervalRef.current);
                 pollIntervalRef.current = null;
-                setUploading(false);
-                setError('Превышено время ожидания обработки');
+                setUpdating(false);
+                setError('Превышено время ожидания обновления');
             }
         }, 1800000);
     };
 
     return (
         <div className="p-6 border border-zinc-200 dark:border-zinc-800 rounded-lg">
-            <h2 className="text-xl font-semibold mb-4">Загрузка товаров Allegro</h2>
+            <h2 className="text-xl font-semibold mb-4">Обновление товаров Qogita</h2>
 
             <div className="space-y-4">
-                {/* File Input */}
-                <div>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".csv"
-                        onChange={handleFileChange}
-                        disabled={uploading}
-                        className="block w-full text-sm text-zinc-900 dark:text-zinc-100 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-zinc-100 file:text-zinc-900 hover:file:bg-zinc-200 dark:file:bg-zinc-800 dark:file:text-zinc-100 dark:hover:file:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    {file && (
-                        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                            Выбран файл: {file.name} ({(file.size / 1024).toFixed(2)} KB)
-                        </p>
-                    )}
-                </div>
-
                 {/* Error Message */}
                 {error && (
                     <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
@@ -177,7 +141,7 @@ export default function AllegroUpload() {
                     </div>
                 )}
 
-                {/* Upload Status */}
+                {/* Update Status */}
                 {status && (
                     <div className="p-4 bg-zinc-50 dark:bg-zinc-900 rounded-md space-y-3">
                         <div className="flex items-center justify-between">
@@ -220,13 +184,7 @@ export default function AllegroUpload() {
                         {/* Result */}
                         {status.result && (
                             <div className="text-sm text-green-600 dark:text-green-400">
-                                <p>✅ Обработано товаров: {status.result.count || 0}</p>
-                                {status.result.totalRows !== undefined && (
-                                    <p>📊 Всего строк: {status.result.totalRows}</p>
-                                )}
-                                {status.result.ignoredRows !== undefined && status.result.ignoredRows > 0 && (
-                                    <p>⚠️ Пропущено строк: {status.result.ignoredRows}</p>
-                                )}
+                                <p>✅ Загружено товаров: {status.result.count || 0}</p>
                             </div>
                         )}
                     </div>
@@ -235,11 +193,11 @@ export default function AllegroUpload() {
                 {/* Action Buttons */}
                 <div className="flex gap-3">
                     <button
-                        onClick={handleUpload}
-                        disabled={!file || uploading}
+                        onClick={handleUpdate}
+                        disabled={updating}
                         className="inline-flex h-10 items-center justify-center rounded-md bg-zinc-900 px-6 text-sm font-medium text-zinc-50 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
                     >
-                        {uploading ? 'Загрузка...' : 'Загрузить'}
+                        {updating ? 'Обновление...' : 'Обновить каталог'}
                     </button>
                 </div>
             </div>

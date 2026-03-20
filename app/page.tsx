@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import AllegroUpload from "@/components/allegro-upload";
+import QogitaUpdate from "@/components/qogita-update";
 
 interface Update {
   name: string;
@@ -208,6 +209,11 @@ export default function Home() {
               </button>
             </div>
           )}
+        </div>
+
+        {/* Qogita Update */}
+        <div className="mb-8">
+          <QogitaUpdate />
         </div>
 
         {/* Allegro Upload */}

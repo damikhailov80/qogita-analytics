@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
-import { allegroUploadQueue, ALLEGRO_UPLOAD_JOB_NAME } from '@/lib/queue';
+import { allegroUploadQueue, ALLEGRO_UPLOAD_JOB_NAME } from '@/lib/workers/queue';
 
 const UPLOAD_DIR = '/tmp/allegro-uploads';
 

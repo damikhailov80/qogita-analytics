@@ -4,7 +4,7 @@ import { parse } from 'csv-parse';
 import { createReadStream, unlink } from 'fs';
 import { promisify } from 'util';
 import { prisma } from '@/lib/prisma';
-import { AllegroUploadJobData, ALLEGRO_UPLOAD_QUEUE_NAME, redisConnection } from '@/lib/queue';
+import { AllegroUploadJobData, ALLEGRO_UPLOAD_QUEUE_NAME, workerOptions } from '@/lib/workers/queue';
 
 const unlinkAsync = promisify(unlink);
 
@@ -68,6 +68,7 @@ export const allegroUploadWorker = new Worker<AllegroUploadJobData>(
     ALLEGRO_UPLOAD_QUEUE_NAME,
     async (job: Job<AllegroUploadJobData>) => {
         const { filePath, fileName, fileSize } = job.data;
+        const startTime = new Date();
 
         await job.updateProgress(5);
         await job.log(`Processing file: ${fileName} (${(fileSize / 1024 / 1024).toFixed(2)} MB)`);
@@ -160,13 +161,28 @@ export const allegroUploadWorker = new Worker<AllegroUploadJobData>(
             await unlinkAsync(filePath);
             await job.log(`Cleaned up temporary file`);
 
-            return {
+            const result = {
                 success: true,
                 count: totalProcessed,
                 totalRows,
                 ignoredRows: totalIgnored,
                 fileName
             };
+
+            // Сохраняем логи в базу данных
+            await prisma.workerLog.create({
+                data: {
+                    workerType: 'allegro-upload',
+                    jobId: job.id as string,
+                    status: 'completed',
+                    logs: [`Processed ${totalProcessed} products from ${totalRows} rows`],
+                    result: result,
+                    startedAt: startTime,
+                    completedAt: new Date()
+                }
+            });
+
+            return result;
         } catch (error) {
             // Удаляем файл даже при ошибке
             try {
@@ -174,13 +190,24 @@ export const allegroUploadWorker = new Worker<AllegroUploadJobData>(
             } catch (cleanupError) {
                 console.error('Failed to cleanup file:', cleanupError);
             }
+
+            // Сохраняем логи об ошибке
+            await prisma.workerLog.create({
+                data: {
+                    workerType: 'allegro-upload',
+                    jobId: job.id as string,
+                    status: 'failed',
+                    logs: [`Error: ${error instanceof Error ? error.message : String(error)}`],
+                    error: error instanceof Error ? error.message : String(error),
+                    startedAt: startTime,
+                    completedAt: new Date()
+                }
+            }).catch((err: Error) => console.error('Failed to save error log:', err));
+
             throw error;
         }
     },
-    {
-        connection: redisConnection,
-        concurrency: 1,
-    }
+    workerOptions
 );
 
 allegroUploadWorker.on('completed', (job) => {

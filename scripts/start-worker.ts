@@ -1,38 +1,47 @@
 import 'dotenv/config';
+import { Worker } from 'bullmq';
 import { allegroUploadWorker } from '../lib/workers/allegro-upload-worker';
-import { redisConnection } from '../lib/queue';
+import { qogitaUpdateWorker } from '../lib/workers/qogita-update-worker';
+import { redisConnection } from '../lib/workers/queue';
 
-console.log('🚀 Starting Allegro Upload Worker...');
+const workers = [
+    { worker: allegroUploadWorker, name: 'Allegro Upload' },
+    { worker: qogitaUpdateWorker, name: 'Qogita Update' }
+];
+
+console.log('🚀 Starting Workers...');
 console.log(`📡 Connecting to Redis at ${redisConnection.host}:${redisConnection.port}`);
 
-allegroUploadWorker.on('ready', () => {
-    console.log('✅ Worker is ready and waiting for jobs');
-});
+function setupWorkerListeners(worker: Worker, name: string) {
+    worker.on('ready', () => {
+        console.log(`✅ ${name} Worker is ready and waiting for jobs`);
+    });
 
-allegroUploadWorker.on('active', (job) => {
-    console.log(`📝 Processing job ${job.id}`);
-});
+    worker.on('active', (job) => {
+        console.log(`📝 [${name}] Processing job ${job.id}`);
+    });
 
-allegroUploadWorker.on('completed', (job) => {
-    console.log(`✅ Job ${job.id} completed successfully`);
-});
+    worker.on('completed', (job) => {
+        console.log(`✅ [${name}] Job ${job.id} completed successfully`);
+    });
 
-allegroUploadWorker.on('failed', (job, err) => {
-    console.error(`❌ Job ${job?.id} failed:`, err.message);
-});
+    worker.on('failed', (job, err) => {
+        console.error(`❌ [${name}] Job ${job?.id} failed:`, err.message);
+    });
 
-allegroUploadWorker.on('error', (err) => {
-    console.error('Worker error:', err);
-});
+    worker.on('error', (err) => {
+        console.error(`[${name}] Worker error:`, err);
+    });
+}
 
-process.on('SIGTERM', async () => {
-    console.log('Shutting down worker...');
-    await allegroUploadWorker.close();
+// Setup listeners for all workers
+workers.forEach(({ worker, name }) => setupWorkerListeners(worker, name));
+
+async function shutdown() {
+    console.log('Shutting down workers...');
+    await Promise.all(workers.map(({ worker }) => worker.close()));
     process.exit(0);
-});
+}
 
-process.on('SIGINT', async () => {
-    console.log('Shutting down worker...');
-    await allegroUploadWorker.close();
-    process.exit(0);
-});
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

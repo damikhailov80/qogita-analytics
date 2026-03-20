@@ -40,6 +40,25 @@ model Update {
   @@map("updates")
 }
 
+model Product {
+  id                          Int      @id @default(autoincrement())
+  gtin                        String   @unique @db.VarChar(14)
+  name                        String   @db.Text
+  category                    String?  @db.VarChar(255)
+  brand                       String?  @db.VarChar(255)
+  lowestPrice                 Decimal? @map("lowest_price") @db.Decimal(10, 2)
+  unit                        String?  @db.VarChar(50)
+  lowestPricedOfferInventory  Int?     @map("lowest_priced_offer_inventory")
+  isPreOrder                  Boolean  @default(false) @map("is_pre_order")
+  estimatedDeliveryTimeWeeks  Int?     @map("estimated_delivery_time_weeks")
+  numberOfOffers              Int?     @map("number_of_offers")
+  totalInventoryAllOffers     Int?     @map("total_inventory_all_offers")
+  productUrl                  String?  @map("product_url") @db.Text
+  imageUrl                    String?  @map("image_url") @db.Text
+
+  @@map("products")
+}
+
 model ProductAllegro {
   id            Int     @id @default(autoincrement())
   gtin          String  @unique @db.VarChar(14)
@@ -47,4 +66,20 @@ model ProductAllegro {
   price         Decimal @db.Decimal(10, 2)
 
   @@map("products_allegro")
+}
+
+model WorkerLog {
+  id          Int      @id @default(autoincrement())
+  workerType  String   @map("worker_type") @db.VarChar(50) // 'allegro-upload' или 'qogita-update'
+  jobId       String   @map("job_id") @db.VarChar(100)
+  status      String   @db.VarChar(50) // 'completed', 'failed'
+  logs        String[] @db.Text
+  result      Json?    @db.JsonB
+  error       String?  @db.Text
+  startedAt   DateTime @map("started_at")
+  completedAt DateTime @map("completed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([workerType, createdAt])
+  @@map("worker_logs")
 }
