@@ -11,7 +11,6 @@
     "db:reset": "prisma migrate reset",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "csv-to-json": "tsx scripts/csv-to-json.ts",
     "seed": "tsx scripts/seed-catalog.ts",
     "fetch-offers": "tsx scripts/fetch-offers.ts",
     "worker": "tsx scripts/start-worker.ts",
