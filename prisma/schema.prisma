@@ -39,3 +39,12 @@ model Update {
 
   @@map("updates")
 }
+
+model ProductAllegro {
+  id            Int     @id @default(autoincrement())
+  gtin          String  @unique @db.VarChar(14)
+  salesQuantity Int     @map("sales_quantity")
+  price         Decimal @db.Decimal(10, 2)
+
+  @@map("products_allegro")
+}

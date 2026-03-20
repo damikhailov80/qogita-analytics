@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import AllegroUpload from "@/components/allegro-upload";
 
 interface Update {
   name: string;
@@ -207,6 +208,11 @@ export default function Home() {
               </button>
             </div>
           )}
+        </div>
+
+        {/* Allegro Upload */}
+        <div className="mb-8">
+          <AllegroUpload />
         </div>
 
         <Link

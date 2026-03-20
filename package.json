@@ -13,7 +13,11 @@
     "db:studio": "prisma studio",
     "csv-to-json": "tsx scripts/csv-to-json.ts",
     "seed": "tsx scripts/seed-catalog.ts",
-    "fetch-offers": "tsx scripts/fetch-offers.ts"
+    "fetch-offers": "tsx scripts/fetch-offers.ts",
+    "worker": "tsx scripts/start-worker.ts",
+    "redis:start": "brew services start redis",
+    "redis:stop": "brew services stop redis",
+    "redis:status": "redis-cli ping"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.5.0",
@@ -21,9 +25,12 @@
     "@reduxjs/toolkit": "^2.11.2",
     "@tanstack/react-table": "^8.21.3",
     "axios": "^1.13.6",
+    "bullmq": "^5.71.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "csv-parse": "^6.2.1",
     "dotenv": "^17.3.1",
+    "ioredis": "^5.10.1",
     "lucide-react": "^0.577.0",
     "next": "16.1.7",
     "pg": "^8.20.0",
