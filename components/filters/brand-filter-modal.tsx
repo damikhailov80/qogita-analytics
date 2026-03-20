@@ -1,7 +1,7 @@
 'use client';
 
 import { Modal } from '@/components/ui/modal';
-import { BrandFilter } from '@/components/brand-filter';
+import { BrandFilter } from '@/components/filters/brand-filter';
 
 interface BrandFilterModalProps {
     isOpen: boolean;

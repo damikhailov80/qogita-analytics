@@ -1,7 +1,7 @@
 'use client';
 
-import { EntityFilter } from './entity-filter/entity-filter';
-import type { EntityFilterConfig } from './entity-filter/types';
+import { EntityFilter } from '@/components/entity-filter/entity-filter';
+import type { EntityFilterConfig } from '@/components/entity-filter/types';
 
 interface BrandFilterProps {
     onFilterChange?: (whiteList: string[], blackList: string[]) => void;

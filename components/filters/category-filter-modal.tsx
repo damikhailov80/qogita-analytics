@@ -1,7 +1,7 @@
 'use client';
 
 import { Modal } from '@/components/ui/modal';
-import { CategoryFilter } from '@/components/category-filter';
+import { CategoryFilter } from '@/components/filters/category-filter';
 
 interface CategoryFilterModalProps {
     isOpen: boolean;
