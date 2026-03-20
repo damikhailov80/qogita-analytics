@@ -19,7 +19,7 @@ import { ColumnVisibilityModal } from '@/components/filters/column-visibility-mo
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { setColumnVisibility } from '@/lib/store/columnVisibilitySlice';
 
-type CatalogItem = {
+type ProductItem = {
     id: number;
     gtin: string;
     name: string;
@@ -37,7 +37,7 @@ type CatalogItem = {
 };
 
 type ApiResponse = {
-    data: CatalogItem[];
+    data: ProductItem[];
     pagination: {
         page: number;
         pageSize: number;
@@ -50,7 +50,7 @@ type ApiResponse = {
 
 export default function ProductsPage() {
     const dispatch = useAppDispatch();
-    const [data, setData] = useState<CatalogItem[]>([]);
+    const [data, setData] = useState<ProductItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [sorting, setSorting] = useState<SortingState>([]);
     const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
@@ -71,7 +71,7 @@ export default function ProductsPage() {
     const blackListCategories = useAppSelector((state) => state.filters.categories.blackList);
 
     // Читаем видимость колонок из Redux
-    const columnVisibility = useAppSelector((state) => state.columnVisibility.catalog);
+    const columnVisibility = useAppSelector((state) => state.columnVisibility.products);
 
     // Ensure component is mounted before showing Redux-dependent content
     useEffect(() => {
@@ -81,10 +81,10 @@ export default function ProductsPage() {
     // Обработчик изменения видимости колонок
     const handleColumnVisibilityChange = (updater: VisibilityState | ((old: VisibilityState) => VisibilityState)) => {
         const newVisibility = typeof updater === 'function' ? updater(columnVisibility) : updater;
-        dispatch(setColumnVisibility({ table: 'catalog', visibility: newVisibility }));
+        dispatch(setColumnVisibility({ table: 'products', visibility: newVisibility }));
     };
 
-    const columns: ColumnDef<CatalogItem>[] = [
+    const columns: ColumnDef<ProductItem>[] = [
         {
             accessorKey: 'imageUrl',
             header: 'Image',
@@ -258,7 +258,7 @@ export default function ProductsPage() {
     ];
 
     useEffect(() => {
-        const fetchCatalog = async () => {
+        const fetchProducts = async () => {
             setLoading(true);
             try {
                 const sortField = sorting[0]?.id || 'id';
@@ -292,13 +292,13 @@ export default function ProductsPage() {
                 setData(result.data);
                 setTotalPages(result.pagination.totalPages);
             } catch (error) {
-                console.error('Error fetching catalog:', error);
+                console.error('Error fetching products:', error);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchCatalog();
+        fetchProducts();
     }, [pagination.pageIndex, pagination.pageSize, sorting, whiteListBrands, blackListBrands, whiteListCategories, blackListCategories]);
 
     const table = useReactTable({
@@ -349,7 +349,7 @@ export default function ProductsPage() {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `catalog-export-${new Date().toISOString().replace(/:/g, '-')}.csv`;
+            a.download = `products-export-${new Date().toISOString().replace(/:/g, '-')}.csv`;
             document.body.appendChild(a);
             a.click();
 

@@ -61,7 +61,7 @@ export async function saveWorkerLog(params: {
                 jobId: params.jobId,
                 status: params.status,
                 logs: params.logs,
-                result: params.result || null,
+                result: params.result || undefined,
                 error: params.error || null,
                 startedAt: params.startedAt,
                 completedAt: params.completedAt

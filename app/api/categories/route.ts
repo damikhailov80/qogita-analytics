@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 export async function GET() {
     try {
         // Получаем все категории с количеством элементов
-        const categories = await prisma.catalog.groupBy({
+        const categories = await prisma.product.groupBy({
             by: ['category'],
             _count: {
                 id: true,

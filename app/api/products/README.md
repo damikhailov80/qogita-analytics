@@ -6,12 +6,12 @@
 
 ### Endpoints
 
-#### POST /api/products/allegro/upload
+#### POST /api/products/allegro/update
 Загружает CSV файл и создает асинхронную задачу для обработки.
 
 **Request:**
 ```bash
-curl -X POST http://localhost:3000/api/products/allegro/upload \
+curl -X POST http://localhost:3000/api/products/allegro/update \
   -F "file=@products.csv"
 ```
 
@@ -24,12 +24,12 @@ curl -X POST http://localhost:3000/api/products/allegro/upload \
 }
 ```
 
-#### GET /api/products/allegro/upload?jobId={jobId}
-Проверяет статус задачи загрузки.
+#### GET /api/products/allegro/update
+Проверяет статус последней задачи загрузки Allegro.
 
 **Request:**
 ```bash
-curl http://localhost:3000/api/products/allegro/upload?jobId=1
+curl http://localhost:3000/api/products/allegro/update
 ```
 
 **Response:**
@@ -67,11 +67,25 @@ curl http://localhost:3000/api/products/allegro/upload?jobId=1
 - `delayed` - задача отложена
 
 #### GET /api/products/allegro
-Получает все продукты Allegro.
+Получает все продукты Allegro из базы данных.
 
 **Request:**
 ```bash
 curl http://localhost:3000/api/products/allegro
+```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "gtin": "773602420667",
+    "traffic": 2,
+    "priceNetto": 80.49,
+    "createdAt": "2026-03-19T15:42:17.000Z",
+    "updatedAt": "2026-03-19T15:42:17.000Z"
+  }
+]
 ```
 
 ### CSV Format
