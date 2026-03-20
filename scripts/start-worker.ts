@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { Worker } from 'bullmq';
-import { allegroUploadWorker } from '../lib/workers/allegro-upload-worker';
+import { allegroUploadWorker } from '../lib/workers/allegro-update-worker';
 import { qogitaUpdateWorker } from '../lib/workers/qogita-update-worker';
 import { redisConnection } from '../lib/workers/queue';
 

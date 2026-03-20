@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import AllegroUpload from "@/components/allegro-upload";
-import QogitaUpdate from "@/components/qogita-update";
+import AllegroUpload from "@/components/updates/allegro-update";
+import QogitaUpdate from "@/components/updates/qogita-update";
 
 interface Update {
   name: string;
