@@ -25,6 +25,8 @@ model Product {
   productUrl                  String?  @map("product_url") @db.Text
   imageUrl                    String?  @map("image_url") @db.Text
 
+  offers                      Offer[]
+
   @@map("products")
 }
 
@@ -51,4 +53,36 @@ model WorkerLog {
 
   @@index([workerType, createdAt])
   @@map("worker_logs")
+}
+
+model Seller {
+  id              Int      @id @default(autoincrement())
+  code            String   @unique @db.VarChar(50)
+  minOrderValue   Decimal  @map("min_order_value") @db.Decimal(10, 2)
+  currency        String   @default("EUR") @db.VarChar(3)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  offers          Offer[]
+
+  @@map("sellers")
+}
+
+model Offer {
+  id              Int      @id @default(autoincrement())
+  gtin            String   @db.VarChar(14)
+  sellerCode      String   @map("seller_code") @db.VarChar(50)
+  price           Decimal  @db.Decimal(10, 2)
+  priceCurrency   String   @map("price_currency") @db.VarChar(3)
+  inventory       Int
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  product         Product  @relation(fields: [gtin], references: [gtin])
+  seller          Seller   @relation(fields: [sellerCode], references: [code])
+
+  @@unique([gtin, sellerCode])
+  @@index([gtin])
+  @@index([sellerCode])
+  @@map("offers")
 }

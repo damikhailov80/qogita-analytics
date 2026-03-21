@@ -1,0 +1,42 @@
+### Get offers by GTIN
+GET http://localhost:3000/api/offers?gtin=4011700740086
+
+###
+
+### Update offers for a product (fetches from Qogita API)
+POST http://localhost:3000/api/offers/update
+Content-Type: application/json
+
+{
+  "gtin": "4011700740086"
+}
+
+###
+
+### Update offers for another product
+POST http://localhost:3000/api/offers/update
+Content-Type: application/json
+
+{
+  "gtin": "4011700740123"
+}
+
+###
+
+### Test with invalid GTIN (should return 404)
+POST http://localhost:3000/api/offers/update
+Content-Type: application/json
+
+{
+  "gtin": "9999999999999"
+}
+
+###
+
+### Test with missing GTIN (should return 400)
+POST http://localhost:3000/api/offers/update
+Content-Type: application/json
+
+{}
+
+###
