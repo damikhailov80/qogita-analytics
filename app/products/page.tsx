@@ -18,6 +18,7 @@ import { CategoryFilterModal } from '@/components/filters/category-filter-modal'
 import { ColumnVisibilityModal } from '@/components/filters/column-visibility-modal';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { setColumnVisibility } from '@/lib/store/columnVisibilitySlice';
+import { setOnlyAllegro } from '@/lib/store/filterSlice';
 
 type ProductItem = {
     id: number;
@@ -69,6 +70,7 @@ export default function ProductsPage() {
     const blackListBrands = useAppSelector((state) => state.filters.brands.blackList);
     const whiteListCategories = useAppSelector((state) => state.filters.categories.whiteList);
     const blackListCategories = useAppSelector((state) => state.filters.categories.blackList);
+    const onlyAllegro = useAppSelector((state) => state.filters.global?.onlyAllegro ?? false);
 
     // Читаем видимость колонок из Redux
     const columnVisibility = useAppSelector((state) => state.columnVisibility.products);
@@ -280,6 +282,7 @@ export default function ProductsPage() {
                         blacklist: blackListBrands,
                         categoryWhitelist: whiteListCategories,
                         categoryBlacklist: blackListCategories,
+                        onlyAllegro,
                     }),
                 });
 
@@ -299,7 +302,7 @@ export default function ProductsPage() {
         };
 
         fetchProducts();
-    }, [pagination.pageIndex, pagination.pageSize, sorting, whiteListBrands, blackListBrands, whiteListCategories, blackListCategories]);
+    }, [pagination.pageIndex, pagination.pageSize, sorting, whiteListBrands, blackListBrands, whiteListCategories, blackListCategories, onlyAllegro]);
 
     const table = useReactTable({
         data,
@@ -335,6 +338,7 @@ export default function ProductsPage() {
                     blacklist: blackListBrands,
                     categoryWhitelist: whiteListCategories,
                     categoryBlacklist: blackListCategories,
+                    onlyAllegro,
                 }),
             });
 
@@ -399,7 +403,7 @@ export default function ProductsPage() {
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h1 className="text-3xl font-bold">Products</h1>
-                    {(whiteListBrands.length > 0 || blackListBrands.length > 0 || whiteListCategories.length > 0 || blackListCategories.length > 0) && (
+                    {(whiteListBrands.length > 0 || blackListBrands.length > 0 || whiteListCategories.length > 0 || blackListCategories.length > 0 || onlyAllegro) && (
                         <p className="text-sm text-gray-600 mt-1">
                             {whiteListBrands.length > 0 && `Бренды (белый): ${whiteListBrands.length}`}
                             {whiteListBrands.length > 0 && blackListBrands.length > 0 && ' | '}
@@ -408,10 +412,24 @@ export default function ProductsPage() {
                             {whiteListCategories.length > 0 && `Категории (белый): ${whiteListCategories.length}`}
                             {whiteListCategories.length > 0 && blackListCategories.length > 0 && ' | '}
                             {blackListCategories.length > 0 && `Категории (черный): ${blackListCategories.length}`}
+                            {(whiteListBrands.length > 0 || blackListBrands.length > 0 || whiteListCategories.length > 0 || blackListCategories.length > 0) && onlyAllegro && ' | '}
+                            {onlyAllegro && 'Только Allegro'}
                         </p>
                     )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                    <label className="flex items-center gap-2 px-3 py-2 border rounded-md cursor-pointer hover:bg-gray-50">
+                        <input
+                            type="checkbox"
+                            checked={onlyAllegro}
+                            onChange={(e) => {
+                                dispatch(setOnlyAllegro(e.target.checked));
+                                setPagination(prev => ({ ...prev, pageIndex: 0 }));
+                            }}
+                            className="w-4 h-4"
+                        />
+                        <span className="text-sm">Только Allegro</span>
+                    </label>
                     <Button
                         variant="outline"
                         onClick={() => setShowBrandFilter(true)}

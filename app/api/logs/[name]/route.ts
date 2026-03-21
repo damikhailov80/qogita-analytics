@@ -9,7 +9,7 @@ export async function GET(
         const { name } = await params;
 
         // Валидация имени воркера
-        const validWorkerTypes = ['allegro', 'qogita'];
+        const validWorkerTypes = ['allegro', 'qogita', 'offers-updateall'];
         if (!validWorkerTypes.includes(name)) {
             return NextResponse.json(
                 { error: 'Invalid worker type' },
@@ -17,7 +17,13 @@ export async function GET(
             );
         }
 
-        const workerType = name === 'allegro' ? 'allegro-upload' : 'qogita-update';
+        const workerTypeMap: Record<string, string> = {
+            'allegro': 'allegro-upload',
+            'qogita': 'qogita-update',
+            'offers-updateall': 'offers-updateall'
+        };
+
+        const workerType = workerTypeMap[name];
 
         const logs = await prisma.workerLog.findMany({
             where: {

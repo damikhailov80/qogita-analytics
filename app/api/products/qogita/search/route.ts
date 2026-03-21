@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
             blacklist: Array.isArray(body.blacklist) ? body.blacklist : [],
             categoryWhitelist: Array.isArray(body.categoryWhitelist) ? body.categoryWhitelist : [],
             categoryBlacklist: Array.isArray(body.categoryBlacklist) ? body.categoryBlacklist : [],
+            onlyAllegro: body.onlyAllegro === true,
         };
 
         return await handleProductSearch(params);

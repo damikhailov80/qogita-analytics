@@ -1,0 +1,10 @@
+### Start offers updateall job
+POST http://localhost:3000/api/offers/updateall
+Content-Type: application/json
+
+###
+
+### Get offers updateall job status
+GET http://localhost:3000/api/offers/updateall
+
+###

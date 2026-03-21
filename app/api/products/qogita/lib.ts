@@ -17,6 +17,7 @@ export interface ProductSearchParams {
     blacklist: string[];
     categoryWhitelist?: string[];
     categoryBlacklist?: string[];
+    onlyAllegro?: boolean;
 }
 
 export interface ProductFilterParams {
@@ -122,6 +123,48 @@ export async function handleProductSearch(params: ProductSearchParams) {
         categoryBlacklist: params.categoryBlacklist,
     });
 
+    // Если нужны только продукты из Allegro, получаем список GTIN
+    if (params.onlyAllegro) {
+        const allegroProducts = await prisma.productAllegro.findMany({
+            select: { gtin: true },
+        });
+        const allegroGtins = allegroProducts.map(p => p.gtin);
+
+        if (allegroGtins.length > 0) {
+            whereCondition.gtin = {
+                in: allegroGtins,
+            };
+        } else {
+            // Если нет продуктов в Allegro, возвращаем пустой результат
+            return NextResponse.json({
+                data: [],
+                pagination: {
+                    page,
+                    pageSize,
+                    totalCount: 0,
+                    totalPages: 0,
+                    hasNextPage: false,
+                    hasPreviousPage: false,
+                },
+                sort: {
+                    field: sortField,
+                    order: sortOrder,
+                },
+                filters: {
+                    brands: {
+                        whitelist: whiteListBrands,
+                        blacklist: blackListBrands,
+                    },
+                    categories: {
+                        whitelist: whiteListCategories,
+                        blacklist: blackListCategories,
+                    },
+                    onlyAllegro: params.onlyAllegro,
+                },
+            });
+        }
+    }
+
     // Подсчет общего количества продуктов с учетом фильтров
     const totalCount = await prisma.product.count({
         where: whereCondition,
@@ -161,6 +204,7 @@ export async function handleProductSearch(params: ProductSearchParams) {
                 whitelist: whiteListCategories,
                 blacklist: blackListCategories,
             },
+            onlyAllegro: params.onlyAllegro || false,
         },
     });
 }

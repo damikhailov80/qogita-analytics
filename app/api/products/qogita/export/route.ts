@@ -16,6 +16,30 @@ export async function POST(request: NextRequest) {
         // Создаем условие фильтрации используя общую функцию
         const whereCondition = buildWhereCondition(params);
 
+        // Если нужны только продукты из Allegro, получаем список GTIN
+        if (body.onlyAllegro === true) {
+            const allegroProducts = await prisma.productAllegro.findMany({
+                select: { gtin: true },
+            });
+            const allegroGtins = allegroProducts.map(p => p.gtin);
+
+            if (allegroGtins.length > 0) {
+                whereCondition.gtin = {
+                    in: allegroGtins,
+                };
+            } else {
+                // Если нет продуктов в Allegro, возвращаем пустой CSV
+                const csvHeader = '"GTIN","Name","Category","Brand","€ Lowest Price inc. shipping","Unit","Lowest Priced Offer Inventory","Is a pre-order?","Estimated Delivery Time (weeks)","Number of Offers","Total Inventory of All Offers","Product URL","Image URL"';
+                return new NextResponse(csvHeader, {
+                    status: 200,
+                    headers: {
+                        'Content-Type': 'text/csv; charset=utf-8',
+                        'Content-Disposition': `attachment; filename="products-export-${new Date().toISOString().replace(/:/g, '-')}.csv"`,
+                    },
+                });
+            }
+        }
+
         // Получаем все продукты без пагинации
         const products = await prisma.product.findMany({
             where: whereCondition,

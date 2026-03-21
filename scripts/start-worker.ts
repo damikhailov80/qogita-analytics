@@ -2,11 +2,13 @@ import 'dotenv/config';
 import { Worker } from 'bullmq';
 import { allegroUploadWorker } from '../lib/workers/allegro-update-worker';
 import { qogitaUpdateWorker } from '../lib/workers/qogita-update-worker';
+import { offersUpdateAllWorker } from '../lib/workers/offers-updateall-worker';
 import { redisConnection } from '../lib/workers/queue';
 
 const workers = [
     { worker: allegroUploadWorker, name: 'Allegro Upload' },
-    { worker: qogitaUpdateWorker, name: 'Qogita Update' }
+    { worker: qogitaUpdateWorker, name: 'Qogita Update' },
+    { worker: offersUpdateAllWorker, name: 'Offers UpdateAll' }
 ];
 
 console.log('🚀 Starting Workers...');

@@ -15,7 +15,9 @@
     "worker": "tsx scripts/start-worker.ts",
     "redis:start": "brew services start redis",
     "redis:stop": "brew services stop redis",
-    "redis:status": "redis-cli ping"
+    "redis:status": "redis-cli ping",
+    "redis:clear": "tsx scripts/clear-queues.ts",
+    "redis:flush": "redis-cli FLUSHDB"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.5.0",

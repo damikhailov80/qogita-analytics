@@ -3,6 +3,7 @@
 import Link from "next/link";
 import AllegroUpload from "@/components/updates/allegro-update";
 import QogitaUpdate from "@/components/updates/qogita-update";
+import OffersUpdate from "@/components/updates/offers-update";
 
 export default function Home() {
 
@@ -22,6 +23,11 @@ export default function Home() {
         {/* Allegro Upload */}
         <div className="mb-8">
           <AllegroUpload />
+        </div>
+
+        {/* Offers Update */}
+        <div className="mb-8">
+          <OffersUpdate />
         </div>
 
         <Link

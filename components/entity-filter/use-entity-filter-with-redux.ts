@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
-import { setWhiteList, setBlackList } from '@/lib/store/filterSlice';
+import { setWhiteList, setBlackList, type FilterEntity } from '@/lib/store/filterSlice';
 import type { Entity } from './types';
-import type { FiltersState } from '@/lib/store/filterSlice';
 
 export function useEntityFilterWithRedux(
     apiEndpoint: string,
-    entityKey: keyof FiltersState,
+    entityKey: FilterEntity,
     onFilterChange?: (whiteList: string[], blackList: string[]) => void
 ) {
     const dispatch = useAppDispatch();

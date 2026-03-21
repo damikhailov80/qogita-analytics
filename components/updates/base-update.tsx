@@ -45,7 +45,30 @@ export default function BaseUpdate({
 
     useEffect(() => {
         fetchLastLog();
+        checkActiveJob();
     }, []);
+
+    const checkActiveJob = async () => {
+        try {
+            const response = await fetch(updateEndpoint);
+            if (response.ok) {
+                const data = await response.json();
+                // Если есть активный или ожидающий job - начинаем polling
+                if (data.state === 'active' || data.state === 'waiting') {
+                    setStatus(data);
+                    setUpdating(true);
+                    pollStatus();
+                } else if (data.state === 'failed') {
+                    // Если job упал - показываем ошибку, но не блокируем UI
+                    setStatus(data);
+                    setError(data.error || 'Предыдущая задача завершилась с ошибкой');
+                    setUpdating(false);
+                }
+            }
+        } catch (err) {
+            console.error('Error checking active job:', err);
+        }
+    };
 
     const fetchLastLog = async () => {
         try {
@@ -168,6 +191,14 @@ export default function BaseUpdate({
                     setUpdating(false);
                     setError(data.error || 'Ошибка обработки');
                     pollIntervalRef.current = null;
+
+                    // Сбрасываем файл при ошибке
+                    if (requiresFile) {
+                        setFile(null);
+                        if (fileInputRef.current) {
+                            fileInputRef.current.value = '';
+                        }
+                    }
                 }
             } catch (err) {
                 console.error('Error polling status:', err);
@@ -273,11 +304,11 @@ export default function BaseUpdate({
                         </div>
 
                         {status.logs && status.logs.length > 0 && (
-                            <div className="max-h-40 overflow-y-auto">
+                            <div className="max-h-60 overflow-y-auto">
                                 <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Логи:</p>
                                 <div className="space-y-1">
-                                    {status.logs.slice(-5).map((log, index) => (
-                                        <p key={index} className="text-xs text-zinc-600 dark:text-zinc-400 font-mono">
+                                    {status.logs.slice(-20).map((log, index) => (
+                                        <p key={index} className="text-xs text-zinc-600 dark:text-zinc-400 font-mono whitespace-pre-wrap">
                                             {log}
                                         </p>
                                     ))}
