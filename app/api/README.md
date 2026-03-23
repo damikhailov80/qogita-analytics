@@ -76,6 +76,47 @@ GET /api/logs/qogita
 
 ---
 
+### GET /api/profitable-sellers
+
+Получение списка продавцов с показателями прибыльности из `order_candidates`.
+
+#### Query параметры
+
+- `sortBy` - поле для сортировки (по умолчанию: `positive_items_count`)
+  - `positive_items_count` - количество товаров с положительным profit_ratio
+  - `max_cumulative_profit` - максимальная накопительная прибыль
+
+#### Примеры запросов
+
+```bash
+GET /api/profitable-sellers
+GET /api/profitable-sellers?sortBy=positive_items_count
+GET /api/profitable-sellers?sortBy=max_cumulative_profit
+```
+
+#### Пример ответа
+
+```json
+{
+  "sellers": [
+    {
+      "seller_code": "SELLER1",
+      "positive_items_count": 150,
+      "max_cumulative_profit": 5000.50
+    },
+    {
+      "seller_code": "SELLER2",
+      "positive_items_count": 120,
+      "max_cumulative_profit": 4500.25
+    }
+  ],
+  "sortBy": "positive_items_count",
+  "count": 2
+}
+```
+
+---
+
 ## Products API
 
 ### GET /api/products/qogita

@@ -21,6 +21,8 @@ export interface BatchProcessResult {
 /**
  * Парсит строку CSV в объект AllegroProduct
  * Извлекает GTIN, количество продаж (traffic) и цену (price_netto)
+ * Конвертирует цену из PLN в EUR используя курс из переменной окружения
+ * Фильтрует товары с sales_quantity < 10
  */
 export function parseAllegroRow(row: Record<string, string>): AllegroProduct | null {
     const gtin = row['GTIN'] || row['gtin'] || '';
@@ -36,19 +38,28 @@ export function parseAllegroRow(row: Record<string, string>): AllegroProduct | n
     }
     const salesQuantity = parseInt(trafficMatch[0]);
 
+    // Пропускаем товары с sales_quantity < 10
+    if (salesQuantity < 10) {
+        return null;
+    }
+
     // Извлекаем число из price_netto (например "80,49 zł" -> 80.49)
     const priceMatch = priceNetto.match(/[\d,]+/);
     if (!priceMatch) return null;
 
     // Заменяем запятую на точку для парсинга
-    const price = parseFloat(priceMatch[0].replace(',', '.'));
+    const pricePLN = parseFloat(priceMatch[0].replace(',', '.'));
 
-    if (isNaN(salesQuantity) || isNaN(price)) return null;
+    if (isNaN(salesQuantity) || isNaN(pricePLN)) return null;
+
+    // Конвертируем цену из PLN в EUR
+    const exchangeRate = parseFloat(process.env.PLN_TO_EUR_RATE || '4.28');
+    const priceEUR = pricePLN / exchangeRate;
 
     return {
         gtin,
         salesQuantity,
-        price
+        price: priceEUR
     };
 }
 

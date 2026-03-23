@@ -178,12 +178,10 @@ export const allegroUploadWorker = new Worker<AllegroUploadJobData>(
                     await logger.log(`⚠️ Skipped ${state.totalSkipped} products - GTIN not found in Qogita products database`);
                     await logger.log(`Ignored ${state.totalIgnored} invalid rows`);
 
-                    // Выводим список пропущенных GTIN
-                    await logger.log(`--- Skipped GTINs ---`);
+                    // Выводим список пропущенных GTIN только в терминал
                     console.log(`[Allegro Upload Worker] --- Skipped GTINs (${state.skippedGtins.length}) ---`);
                     for (const gtin of state.skippedGtins) {
                         console.log(`[Allegro Upload Worker]   ${gtin}`);
-                        await logger.log(`  ${gtin}`);
                     }
                 } else {
                     await logger.log(`✅ Successfully processed ${state.totalProcessed} products from ${totalRows} rows (${state.totalIgnored} ignored)`);
