@@ -108,6 +108,14 @@ export const allegroUploadWorker = new Worker<AllegroUploadJobData>(
                     await logger.log('Clearing existing Allegro products from database...');
                     const deletedCount = await prisma.productAllegro.deleteMany({});
                     await logger.log(`Deleted ${deletedCount.count} existing Allegro products`);
+
+                    await logger.log('Clearing Allegro worker logs and states...');
+                    await prisma.workerLog.deleteMany({
+                        where: { workerType: 'allegro-upload' }
+                    });
+                    await prisma.workerState.deleteMany({
+                        where: { workerType: 'allegro-upload' }
+                    });
                 }
                 await logger.updateProgress(15);
 

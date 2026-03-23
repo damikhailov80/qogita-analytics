@@ -22,7 +22,7 @@ export interface BatchProcessResult {
  * Парсит строку CSV в объект AllegroProduct
  * Извлекает GTIN, количество продаж (traffic) и цену (price_netto)
  * Конвертирует цену из PLN в EUR используя курс из переменной окружения
- * Фильтрует товары с sales_quantity < 10
+ * Фильтрует товары с sales_quantity ниже порога из ALLEGRO_MIN_TRAFFIC
  */
 export function parseAllegroRow(row: Record<string, string>): AllegroProduct | null {
     const gtin = row['GTIN'] || row['gtin'] || '';
@@ -38,8 +38,9 @@ export function parseAllegroRow(row: Record<string, string>): AllegroProduct | n
     }
     const salesQuantity = parseInt(trafficMatch[0]);
 
-    // Пропускаем товары с sales_quantity < 10
-    if (salesQuantity < 10) {
+    // Пропускаем товары с sales_quantity ниже порога
+    const minTraffic = parseInt(process.env.ALLEGRO_MIN_TRAFFIC || '100');
+    if (salesQuantity < minTraffic) {
         return null;
     }
 

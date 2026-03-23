@@ -43,7 +43,24 @@ export const qogitaUpdateWorker = new Worker<QogitaUpdateJobData>(
             await logger.updateProgress(60);
             await logger.log('Clearing old products data...');
 
+            // Удаляем связанные данные в правильном порядке
+            await logger.log('Deleting offers...');
+            await prisma.offer.deleteMany({});
+
+            await logger.log('Deleting Allegro products...');
+            await prisma.productAllegro.deleteMany({});
+
+            await logger.log('Deleting products...');
             await prisma.product.deleteMany({});
+
+            await logger.log('Clearing worker logs and states...');
+            await prisma.workerLog.deleteMany({
+                where: { workerType: { in: ['qogita-update', 'allegro-upload', 'offers-updateall'] } }
+            });
+            await prisma.workerState.deleteMany({
+                where: { workerType: { in: ['qogita-update', 'allegro-upload', 'offers-updateall'] } }
+            });
+
             await logger.log('Old data cleared');
 
             // Шаг 5: Загрузка новых данных

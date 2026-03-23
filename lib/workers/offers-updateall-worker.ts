@@ -92,6 +92,14 @@ export const offersUpdateAllWorker = new Worker<OffersUpdateAllJobData>(
 
                     await logger.log(`Deleted ${deleteResult.count} existing offers`);
 
+                    await logger.log('Clearing offers worker logs and states...');
+                    await prisma.workerLog.deleteMany({
+                        where: { workerType: 'offers-updateall' }
+                    });
+                    await prisma.workerState.deleteMany({
+                        where: { workerType: 'offers-updateall' }
+                    });
+
                     // Инициализируем состояние
                     state = {
                         processedGtins: [],
