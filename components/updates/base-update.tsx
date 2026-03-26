@@ -42,11 +42,19 @@ export default function BaseUpdate({
     const [lastUpdateTime, setLastUpdateTime] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const logsEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         fetchLastLog();
         checkActiveJob();
     }, []);
+
+    // Автоскролл к последнему логу
+    useEffect(() => {
+        if (logsEndRef.current) {
+            logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [status?.logs]);
 
     const checkActiveJob = async () => {
         try {
@@ -67,6 +75,8 @@ export default function BaseUpdate({
             }
         } catch (err) {
             console.error('Error checking active job:', err);
+            // При ошибке проверки не блокируем UI
+            setUpdating(false);
         }
     };
 
@@ -77,6 +87,8 @@ export default function BaseUpdate({
                 const logs = await response.json();
                 if (logs.length > 0) {
                     const lastLog = logs[0];
+                    console.log('[BaseUpdate] Last log from DB:', lastLog);
+                    console.log('[BaseUpdate] Result:', lastLog.result);
                     if (lastLog.status === 'completed' || lastLog.status === 'failed') {
                         setStatus({
                             state: lastLog.status,
@@ -127,9 +139,11 @@ export default function BaseUpdate({
         }
 
         try {
+            // Полностью сбрасываем состояние перед новым запуском
             setUpdating(true);
             setError(null);
             setStatus(null);
+            setLastUpdateTime(null);
 
             const body = requiresFile && file ? (() => {
                 const formData = new FormData();
@@ -152,6 +166,7 @@ export default function BaseUpdate({
         } catch (err: any) {
             setError(err.message || 'Ошибка при запуске обновления');
             setUpdating(false);
+            setStatus(null);
         }
     };
 
@@ -176,8 +191,9 @@ export default function BaseUpdate({
 
                 if (data.state === 'completed') {
                     clearInterval(pollIntervalRef.current!);
-                    setUpdating(false);
                     pollIntervalRef.current = null;
+                    setUpdating(false);
+                    setError(null);
                     setLastUpdateTime(new Date().toISOString());
 
                     if (requiresFile) {
@@ -188,11 +204,11 @@ export default function BaseUpdate({
                     }
                 } else if (data.state === 'failed') {
                     clearInterval(pollIntervalRef.current!);
+                    pollIntervalRef.current = null;
                     setUpdating(false);
                     setError(data.error || 'Ошибка обработки');
-                    pollIntervalRef.current = null;
 
-                    // Сбрасываем файл при ошибке
+                    // Сбрасываем файл при ошибке, чтобы можно было загрузить новый
                     if (requiresFile) {
                         setFile(null);
                         if (fileInputRef.current) {
@@ -202,6 +218,13 @@ export default function BaseUpdate({
                 }
             } catch (err) {
                 console.error('Error polling status:', err);
+                // При ошибке polling останавливаем и разблокируем UI
+                if (pollIntervalRef.current) {
+                    clearInterval(pollIntervalRef.current);
+                    pollIntervalRef.current = null;
+                }
+                setUpdating(false);
+                setError('Ошибка получения статуса обновления');
             }
         }, 1000);
 
@@ -227,12 +250,15 @@ export default function BaseUpdate({
 
     const defaultRenderResult = (result: any) => (
         <div className="text-sm text-green-600 dark:text-green-400">
-            <p>✅ Обработано товаров: {result.count || 0}</p>
-            {result.totalRows !== undefined && (
+            <p>✅ Обработано товаров: {result?.count || 0}</p>
+            {result?.totalRows !== undefined && (
                 <p>📊 Всего строк: {result.totalRows}</p>
             )}
-            {result.ignoredRows !== undefined && result.ignoredRows > 0 && (
-                <p>⚠️ Пропущено строк: {result.ignoredRows}</p>
+            {result?.skippedRows !== undefined && result.skippedRows > 0 && (
+                <p>⚠️ Пропущено (GTIN не найден): {result.skippedRows}</p>
+            )}
+            {result?.ignoredRows !== undefined && result.ignoredRows > 0 && (
+                <p>⚠️ Проигнорировано строк: {result.ignoredRows}</p>
             )}
         </div>
     );
@@ -250,7 +276,7 @@ export default function BaseUpdate({
     };
 
     return (
-        <div className="p-6 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+        <div className="p-6 border border-zinc-200 dark:border-zinc-800 rounded-lg w-full">
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold">{title}</h2>
                 {lastUpdateTime && (
@@ -280,8 +306,8 @@ export default function BaseUpdate({
                 )}
 
                 {error && (
-                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-                        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md overflow-hidden">
+                        <p className="text-sm text-red-600 dark:text-red-400 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{error}</p>
                     </div>
                 )}
 
@@ -304,14 +330,15 @@ export default function BaseUpdate({
                         </div>
 
                         {status.logs && status.logs.length > 0 && (
-                            <div className="max-h-60 overflow-y-auto">
+                            <div className="max-h-60 overflow-y-auto overflow-x-hidden">
                                 <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Логи:</p>
                                 <div className="space-y-1">
                                     {status.logs.slice(-20).map((log, index) => (
-                                        <p key={index} className="text-xs text-zinc-600 dark:text-zinc-400 font-mono whitespace-pre-wrap">
+                                        <p key={index} className="text-xs text-zinc-600 dark:text-zinc-400 font-mono break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                                             {log}
                                         </p>
                                     ))}
+                                    <div ref={logsEndRef} />
                                 </div>
                             </div>
                         )}

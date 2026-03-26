@@ -19,17 +19,30 @@ export interface BatchProcessResult {
 }
 
 /**
+ * Нормализует GTIN, добавляя лидирующие нули до 14 символов
+ */
+function normalizeGtin(gtin: string): string {
+    // Удаляем пробелы и нечисловые символы
+    const cleaned = gtin.replace(/\D/g, '');
+    // Добавляем лидирующие нули до 13 символов
+    return cleaned.padStart(13, '0');
+}
+
+/**
  * Парсит строку CSV в объект AllegroProduct
  * Извлекает GTIN, количество продаж (traffic) и цену (price_netto)
  * Конвертирует цену из PLN в EUR используя курс из переменной окружения
  * Фильтрует товары с sales_quantity ниже порога из ALLEGRO_MIN_TRAFFIC
  */
 export function parseAllegroRow(row: Record<string, string>): AllegroProduct | null {
-    const gtin = row['GTIN'] || row['gtin'] || '';
+    const gtinRaw = row['GTIN'] || row['gtin'] || '';
     const traffic = row['traffic'] || '';
     const priceNetto = row['price_netto'] || '';
 
-    if (!gtin || !traffic || !priceNetto) return null;
+    if (!gtinRaw || !traffic || !priceNetto) return null;
+
+    // Нормализуем GTIN
+    const gtin = normalizeGtin(gtinRaw);
 
     // Извлекаем число из traffic (например "2 osoby" -> 2)
     const trafficMatch = traffic.match(/^\d+/);

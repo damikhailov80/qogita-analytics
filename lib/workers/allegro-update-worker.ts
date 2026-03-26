@@ -81,12 +81,42 @@ export const allegroUploadWorker = new Worker<AllegroUploadJobData>(
             // Создаем stream из файла - настоящий streaming!
             const stream = createReadStream(filePath, { encoding: 'utf-8' });
 
+            // Определяем разделитель из первой строки
+            let delimiter = ';';
+            const firstChunk = await new Promise<string>((resolve) => {
+                const tempStream = createReadStream(filePath, { encoding: 'utf-8' });
+                let data = '';
+                tempStream.on('data', (chunk) => {
+                    data += chunk;
+                    if (data.includes('\n')) {
+                        tempStream.destroy();
+                        resolve(data.split('\n')[0]);
+                    }
+                });
+                tempStream.on('end', () => resolve(data));
+            });
+
+            // Подсчитываем количество разделителей в первой строке
+            const semicolonCount = (firstChunk.match(/;/g) || []).length;
+            const commaCount = (firstChunk.match(/,/g) || []).length;
+
+            if (commaCount > semicolonCount) {
+                delimiter = ',';
+                await logger.log(`Detected CSV delimiter: comma (,)`);
+            } else {
+                await logger.log(`Detected CSV delimiter: semicolon (;)`);
+            }
+
             // Парсер CSV
             const parser = stream.pipe(
                 parse({
                     columns: true,
                     skip_empty_lines: true,
-                    trim: true
+                    trim: true,
+                    delimiter: delimiter,
+                    relax_column_count: true,
+                    quote: '"',
+                    escape: '"'
                 })
             );
 
@@ -103,99 +133,121 @@ export const allegroUploadWorker = new Worker<AllegroUploadJobData>(
             await logger.updateProgress(10);
 
             try {
-                // Удаляем все предыдущие записи только при первом запуске
-                if (!isResume) {
-                    await logger.log('Clearing existing Allegro products from database...');
-                    const deletedCount = await prisma.productAllegro.deleteMany({});
-                    await logger.log(`Deleted ${deletedCount.count} existing Allegro products`);
-
-                    await logger.log('Clearing Allegro worker logs and states...');
-                    await prisma.workerLog.deleteMany({
-                        where: { workerType: 'allegro-upload' }
+                // Оборачиваем обработку в Promise для корректной обработки ошибок парсера
+                await new Promise<void>((resolve, reject) => {
+                    // Обработка ошибок парсинга и stream
+                    parser.on('error', (error) => {
+                        stream.destroy();
+                        reject(error);
                     });
-                    await prisma.workerState.deleteMany({
-                        where: { workerType: 'allegro-upload' }
+
+                    stream.on('error', (error) => {
+                        reject(error);
                     });
-                }
-                await logger.updateProgress(15);
 
-                // Обрабатываем построчно из файла
-                for await (const row of parser) {
-                    totalRows++;
+                    // Обрабатываем построчно из файла
+                    (async () => {
+                        try {
+                            // Удаляем все предыдущие записи только при первом запуске
+                            if (!isResume) {
+                                await logger.log('Clearing existing Allegro products from database...');
+                                const deletedCount = await prisma.productAllegro.deleteMany({});
+                                await logger.log(`Deleted ${deletedCount.count} existing Allegro products`);
 
-                    // Собираем статистику по первым строкам для оценки
-                    if (sampleSize < SAMPLE_ROWS) {
-                        const rowSize = JSON.stringify(row).length;
-                        bytesRead += rowSize;
-                        sampleSize++;
+                                await logger.log('Clearing Allegro worker logs and states...');
+                                await prisma.workerLog.deleteMany({
+                                    where: { workerType: 'allegro-upload' }
+                                });
+                                await prisma.workerState.deleteMany({
+                                    where: { workerType: 'allegro-upload' }
+                                });
+                            }
+                            await logger.updateProgress(15);
 
-                        if (sampleSize === SAMPLE_ROWS) {
-                            const estimation = estimateRowCount(SAMPLE_ROWS, bytesRead, fileSize);
-                            estimatedRows = estimation.estimatedRows;
-                            await logger.log(`Estimated ~${estimatedRows} rows based on first ${SAMPLE_ROWS} rows (avg ${estimation.avgBytesPerRow.toFixed(0)} bytes/row)`);
+                            for await (const row of parser) {
+                                totalRows++;
+
+                                // Собираем статистику по первым строкам для оценки
+                                if (sampleSize < SAMPLE_ROWS) {
+                                    const rowSize = JSON.stringify(row).length;
+                                    bytesRead += rowSize;
+                                    sampleSize++;
+
+                                    if (sampleSize === SAMPLE_ROWS) {
+                                        const estimation = estimateRowCount(SAMPLE_ROWS, bytesRead, fileSize);
+                                        estimatedRows = estimation.estimatedRows;
+                                        await logger.log(`Estimated ~${estimatedRows} rows based on first ${SAMPLE_ROWS} rows (avg ${estimation.avgBytesPerRow.toFixed(0)} bytes/row)`);
+                                    }
+                                }
+
+                                const product = parseAllegroRow(row);
+                                if (!product) {
+                                    state.totalIgnored++;
+                                    continue;
+                                }
+
+                                // Пропускаем уже обработанные продукты
+                                if (state.processedGtins.has(product.gtin)) {
+                                    continue;
+                                }
+
+                                batch.push(product);
+
+                                // Когда набрали батч - обрабатываем
+                                if (batch.length >= batchSize) {
+                                    const result = await processAllegroProductBatch(batch);
+                                    state.totalProcessed += result.processed;
+                                    state.totalSkipped += result.skipped;
+                                    state.skippedGtins.push(...result.skippedGtins);
+
+                                    // Обновляем прогресс только если есть оценка
+                                    if (estimatedRows > 0) {
+                                        const progress = 15 + Math.floor((state.totalProcessed / estimatedRows) * 80);
+                                        await logger.updateProgress(Math.min(progress, 95));
+                                    }
+                                    if (state.totalSkipped > 0) {
+                                        await logger.log(`Processed ${state.totalProcessed} products, skipped ${state.totalSkipped} (GTIN not found in Qogita products), ignored ${state.totalIgnored} rows`);
+                                    } else {
+                                        await logger.log(`Processed ${state.totalProcessed} products, ignored ${state.totalIgnored} rows`);
+                                    }
+
+                                    batch = [];
+                                }
+                            }
+
+                            // Обрабатываем остаток
+                            if (batch.length > 0) {
+                                const result = await processAllegroProductBatch(batch);
+                                state.totalProcessed += result.processed;
+                                state.totalSkipped += result.skipped;
+                                state.skippedGtins.push(...result.skippedGtins);
+                            }
+
+                            await logger.updateProgress(100);
+
+                            if (state.totalSkipped > 0) {
+                                await logger.log(`⚠️ Successfully processed ${state.totalProcessed} products from ${totalRows} rows`);
+                                await logger.log(`⚠️ Skipped ${state.totalSkipped} products - GTIN not found in Qogita products database`);
+                                await logger.log(`Ignored ${state.totalIgnored} invalid rows`);
+
+                                // Выводим список пропущенных GTIN только в терминал
+                                console.log(`[Allegro Upload Worker] --- Skipped GTINs (${state.skippedGtins.length}) ---`);
+                                for (const gtin of state.skippedGtins) {
+                                    console.log(`[Allegro Upload Worker]   ${gtin}`);
+                                }
+                            } else {
+                                await logger.log(`✅ Successfully processed ${state.totalProcessed} products from ${totalRows} rows (${state.totalIgnored} ignored)`);
+                            }
+
+                            // Резолвим Promise только после всех логов
+                            resolve();
+                        } catch (err) {
+                            reject(err);
                         }
-                    }
+                    })();
+                });
 
-                    const product = parseAllegroRow(row);
-                    if (!product) {
-                        state.totalIgnored++;
-                        continue;
-                    }
-
-                    // Пропускаем уже обработанные продукты
-                    if (state.processedGtins.has(product.gtin)) {
-                        continue;
-                    }
-
-                    batch.push(product);
-
-                    // Когда набрали батч - обрабатываем
-                    if (batch.length >= batchSize) {
-                        const result = await processAllegroProductBatch(batch);
-                        state.totalProcessed += result.processed;
-                        state.totalSkipped += result.skipped;
-                        state.skippedGtins.push(...result.skippedGtins);
-
-                        // Обновляем прогресс только если есть оценка
-                        if (estimatedRows > 0) {
-                            const progress = 15 + Math.floor((state.totalProcessed / estimatedRows) * 80);
-                            await logger.updateProgress(Math.min(progress, 95));
-                        }
-                        if (state.totalSkipped > 0) {
-                            await logger.log(`Processed ${state.totalProcessed} products, skipped ${state.totalSkipped} (GTIN not found in Qogita products), ignored ${state.totalIgnored} rows`);
-                        } else {
-                            await logger.log(`Processed ${state.totalProcessed} products, ignored ${state.totalIgnored} rows`);
-                        }
-
-                        batch = [];
-                    }
-                }
-
-                // Обрабатываем остаток
-                if (batch.length > 0) {
-                    const result = await processAllegroProductBatch(batch);
-                    state.totalProcessed += result.processed;
-                    state.totalSkipped += result.skipped;
-                    state.skippedGtins.push(...result.skippedGtins);
-                }
-
-                await logger.updateProgress(100);
-
-                if (state.totalSkipped > 0) {
-                    await logger.log(`⚠️ Successfully processed ${state.totalProcessed} products from ${totalRows} rows`);
-                    await logger.log(`⚠️ Skipped ${state.totalSkipped} products - GTIN not found in Qogita products database`);
-                    await logger.log(`Ignored ${state.totalIgnored} invalid rows`);
-
-                    // Выводим список пропущенных GTIN только в терминал
-                    console.log(`[Allegro Upload Worker] --- Skipped GTINs (${state.skippedGtins.length}) ---`);
-                    for (const gtin of state.skippedGtins) {
-                        console.log(`[Allegro Upload Worker]   ${gtin}`);
-                    }
-                } else {
-                    await logger.log(`✅ Successfully processed ${state.totalProcessed} products from ${totalRows} rows (${state.totalIgnored} ignored)`);
-                }
-
-                // Удаляем файл после обработки
+                // Удаляем файл после успешной обработки
                 await unlinkAsync(filePath);
                 await logger.log(`Cleaned up temporary file`);
 
@@ -208,26 +260,18 @@ export const allegroUploadWorker = new Worker<AllegroUploadJobData>(
                     fileName
                 };
             } catch (error) {
-                // Удаляем файл только если он существует и это не ошибка валидации
-                const isValidationError = error instanceof Error &&
-                    error.message.includes('No products in database');
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                await logger.log(`❌ CSV parsing error: ${errorMessage}`);
 
-                if (!isValidationError) {
-                    try {
-                        await unlinkAsync(filePath);
-                        await logger.log('Cleaned up temporary file after error');
-                    } catch (cleanupError) {
-                        console.error('[Allegro Upload Worker] Failed to cleanup file:', cleanupError);
-                    }
-                } else {
-                    try {
-                        await unlinkAsync(filePath);
-                        await logger.log('Cleaned up temporary file');
-                    } catch (cleanupError) {
-                        console.error('[Allegro Upload Worker] Failed to cleanup file:', cleanupError);
-                    }
+                // Удаляем файл после ошибки
+                try {
+                    await unlinkAsync(filePath);
+                    await logger.log('Cleaned up temporary file after error');
+                } catch (cleanupError) {
+                    console.error('[Allegro Upload Worker] Failed to cleanup file:', cleanupError);
                 }
 
+                // Пробрасываем ошибку дальше, чтобы job был помечен как failed
                 throw error;
             }
         });
