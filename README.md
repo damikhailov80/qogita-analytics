@@ -28,9 +28,13 @@ REDIS_HOST="localhost"
 REDIS_PORT="6379"
 ```
 
-3. Примените схему к базе данных:
+3. Примените миграции к базе данных:
 ```bash
-npm run db:push
+# Для разработки (создает БД и применяет миграции)
+npm run db:migrate:dev
+
+# Для production (только применяет существующие миграции)
+npm run db:migrate
 ```
 
 ## Команды
@@ -41,7 +45,9 @@ npm run db:push
 - `npm run start` - Запуск production сервера
 
 ### База данных
-- `npm run db:push` - Синхронизация схемы без миграций
+- `npm run db:migrate:dev` - Применить миграции (для разработки)
+- `npm run db:migrate` - Применить миграции (для production)
+- `npm run db:push` - Синхронизация схемы без миграций (не рекомендуется)
 - `npm run db:reset` - Очистка всей базы
 - `npm run db:generate` - Генерация Prisma Client
 - `npm run db:studio` - GUI для просмотра данных

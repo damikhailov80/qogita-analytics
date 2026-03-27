@@ -1,11 +1,13 @@
 import { configureStore } from '@reduxjs/toolkit';
 import filterReducer from './filterSlice';
 import columnVisibilityReducer from './columnVisibilitySlice';
+import sellersReducer from './sellersSlice';
 import { loadState, saveState } from './localStorage';
 
 const rootReducer = {
     filters: filterReducer,
     columnVisibility: columnVisibilityReducer,
+    sellers: sellersReducer,
 };
 
 const persistedState = loadState();

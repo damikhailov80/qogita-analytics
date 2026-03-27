@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
+import { setSortBy, toggleSortOrder, type SortField } from '@/lib/store/sellersSlice';
 
 type Seller = {
     seller_code: string;
@@ -18,11 +20,11 @@ type ApiResponse = {
 };
 
 export default function SellersPage() {
+    const dispatch = useAppDispatch();
+    const { sortBy, sortOrder } = useAppSelector((state) => state.sellers);
     const [sellers, setSellers] = useState<Seller[]>([]);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
-    const [sortBy, setSortBy] = useState<'positive_items_count' | 'max_cumulative_profit' | 'total_positive_sales'>('positive_items_count');
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
     useEffect(() => {
         const fetchSellers = async () => {
@@ -46,12 +48,11 @@ export default function SellersPage() {
         fetchSellers();
     }, [sortBy]);
 
-    const handleSort = (field: 'positive_items_count' | 'max_cumulative_profit' | 'total_positive_sales') => {
+    const handleSort = (field: SortField) => {
         if (sortBy === field) {
-            setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
+            dispatch(toggleSortOrder());
         } else {
-            setSortBy(field);
-            setSortOrder('desc');
+            dispatch(setSortBy(field));
         }
     };
 
