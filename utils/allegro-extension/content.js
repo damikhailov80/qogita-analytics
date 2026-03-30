@@ -37,27 +37,55 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
         console.log('[Allegro Extension] Command+Shift+U pressed - starting batch processing');
         startBatchProcessing();
+    } else if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        console.log('[Allegro Extension] Command+Shift+S pressed - starting suspicious batch processing');
+        startBatchProcessing(true); // true = suspicious only
     }
 });
 
-function startBatchProcessing() {
+function startBatchProcessing(suspiciousOnly = false) {
     if (isBatchProcessing) {
         console.log('[Allegro Extension] Batch processing already in progress');
         return;
     }
 
     // Find all Allegro links on the page
-    const links = [...document.querySelectorAll('a[href*="allegro.pl"]')]
-        .filter(link => link.href.includes('allegro.pl'))
+    const allLinks = document.querySelectorAll('a[href*="allegro.pl"]');
+    const links = [...allLinks]
+        .filter(link => {
+            const row = link.closest('tr');
+            if (!row) return false;
+
+            // Skip manual price rows in all modes
+            if (row.dataset.priceManual === 'true') {
+                console.log('[Allegro Extension] Skipping manual price row:', link.href);
+                return false;
+            }
+
+            // If suspicious only mode, only include suspicious rows
+            if (suspiciousOnly) {
+                if (row.dataset.roiSuspicious === 'true') {
+                    console.log('[Allegro Extension] Including suspicious row:', link.href);
+                    return link.href.includes('allegro.pl');
+                }
+                return false;
+            }
+
+            // Normal mode: include all non-manual rows
+            return link.href.includes('allegro.pl');
+        })
         .map(link => link.href);
 
     if (links.length === 0) {
-        console.log('[Allegro Extension] No Allegro links found');
-        alert('No Allegro links found on this page');
+        const mode = suspiciousOnly ? 'suspicious' : 'batch';
+        console.log(`[Allegro Extension] No Allegro links found for ${mode} processing`);
+        alert(`No Allegro links found for ${mode} processing`);
         return;
     }
 
-    console.log('[Allegro Extension] Found', links.length, 'Allegro links');
+    const mode = suspiciousOnly ? 'suspicious' : 'all';
+    console.log(`[Allegro Extension] Found ${links.length} Allegro links (${mode} mode)`);
 
     isBatchProcessing = true;
     batchQueue = links;

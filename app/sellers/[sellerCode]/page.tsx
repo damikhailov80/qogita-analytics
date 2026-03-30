@@ -243,7 +243,12 @@ export default function SellerDetailPage() {
                                 orders.map((order) => {
                                     const isEditing = editingGtin === order.gtin;
                                     return (
-                                        <tr key={order.rn} className="border-b transition-colors hover:bg-muted/50">
+                                        <tr
+                                            key={order.rn}
+                                            className="border-b transition-colors hover:bg-muted/50"
+                                            data-price-manual={order.manual_price ? "true" : undefined}
+                                            data-roi-suspicious={order.profit_ratio > 30 ? "true" : undefined}
+                                        >
                                             <td className="p-4 align-middle">
                                                 <div className="text-gray-500">{order.rn}</div>
                                             </td>
