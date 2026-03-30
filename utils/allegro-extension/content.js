@@ -12,12 +12,14 @@ document.addEventListener('mouseover', (e) => {
     if (!url.includes('allegro.pl')) return;
 
     console.log('[Allegro Extension] Allegro link hovered with Shift:', url);
+    console.log('[Allegro Extension] Command/Meta key pressed:', e.metaKey);
 
     // Send message to background script to open tab and extract price
     try {
         chrome.runtime.sendMessage({
             action: 'extractPrice',
-            url: url
+            url: url,
+            shouldClickAgain: e.metaKey // true if Shift+Command
         });
     } catch (error) {
         console.error('[Allegro Extension] Extension context invalidated. Please reload the page.');

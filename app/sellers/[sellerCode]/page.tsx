@@ -362,6 +362,7 @@ export default function SellerDetailPage() {
                                                         <Button
                                                             size="sm"
                                                             onClick={() => handleSave(order.gtin)}
+                                                            data-gtin={order.gtin}
                                                         >
                                                             Save
                                                         </Button>

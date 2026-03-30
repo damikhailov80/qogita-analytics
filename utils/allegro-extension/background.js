@@ -15,9 +15,10 @@ function extractPrice() {
             console.log('[Allegro Extension] Element text:', text, '-> parsed:', parsed);
             return parsed;
         })
-        .filter(i => !isNaN(i));
+        .filter(i => !isNaN(i))
+        .sort((a, b) => a - b);
 
-    console.log('[Allegro Extension] All prices:', prices);
+    console.log('[Allegro Extension] All prices (sorted):', prices);
     const result = prices[0] || null;
     console.log('[Allegro Extension] Returning price:', result);
 
@@ -45,8 +46,9 @@ function copyToClipboard(text) {
 }
 
 // Function to fill price input on original page
-function fillPriceInput(gtin, price) {
+function fillPriceInput(gtin, price, shouldClickAgain) {
     console.log('[Allegro Extension] Looking for button with gtin:', gtin);
+    console.log('[Allegro Extension] Should click again:', shouldClickAgain);
 
     // Find button with data-gtin attribute
     const button = document.querySelector(`button[data-gtin="${gtin}"]`);
@@ -67,6 +69,14 @@ function fillPriceInput(gtin, price) {
             input.dispatchEvent(new Event('input', { bubbles: true }));
             input.dispatchEvent(new Event('change', { bubbles: true }));
             clearInterval(checkInput);
+
+            // If shouldClickAgain is true, click the button again after a short delay
+            if (shouldClickAgain) {
+                setTimeout(() => {
+                    console.log('[Allegro Extension] Clicking button again...');
+                    button.click();
+                }, 300);
+            }
         }
     }, 100);
 
@@ -77,8 +87,10 @@ function fillPriceInput(gtin, price) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'extractPrice') {
         const url = message.url;
+        const shouldClickAgain = message.shouldClickAgain || false;
 
         console.log('[Allegro Extension] Received request for URL:', url);
+        console.log('[Allegro Extension] Should click again:', shouldClickAgain);
 
         // Extract GTIN from URL
         const gtinMatch = url.match(/string=(\d+)/);
@@ -143,7 +155,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                                         chrome.scripting.executeScript({
                                             target: { tabId: sender.tab.id },
                                             func: fillPriceInput,
-                                            args: [gtin, price.toString()]
+                                            args: [gtin, price.toString(), shouldClickAgain]
                                         }).then(() => {
                                             console.log('[Allegro Extension] Price filled on original page');
                                         }).catch(err => {
