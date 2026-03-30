@@ -10,11 +10,20 @@ document.addEventListener('mouseover', (e) => {
     // Check if Shift key is pressed
     if (!e.shiftKey) return;
 
+    // Use closest to find the link even if hovering over child elements
     const link = e.target.closest('a[href*="allegro.pl"]');
     if (!link) return;
 
     const url = link.href;
     if (!url.includes('allegro.pl')) return;
+
+    // Check if we already processed this link recently (debounce)
+    const now = Date.now();
+    if (link.dataset.lastProcessed && (now - parseInt(link.dataset.lastProcessed)) < 2000) {
+        console.log('[Allegro Extension] Link recently processed, skipping');
+        return;
+    }
+    link.dataset.lastProcessed = now.toString();
 
     console.log('[Allegro Extension] Allegro link hovered with Shift:', url);
     console.log('[Allegro Extension] Command/Meta key pressed:', e.metaKey);
