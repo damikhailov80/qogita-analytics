@@ -11,8 +11,67 @@ let batchProcessingState = {
 function extractPrice() {
     console.log('[Allegro Extension] Extracting price from page...');
 
+    // First, get the best offer with price and offers link
+    const articles = document.querySelectorAll('.opbox-listing li article');
+    console.log('[Allegro Extension] Found articles:', articles.length);
+
+    const offers = [...articles]
+        .map(el => {
+            const priceEl = el.querySelector('p[tabindex="0"]');
+            const offersLink = el.querySelector('[data-role-type="product-fiche-link"]');
+
+            if (!priceEl) return null;
+
+            const priceText = priceEl.innerText;
+            const price = parseFloat(priceText.replace(",", "."));
+
+            console.log('[Allegro Extension] Article:', {
+                price: price,
+                hasOffersLink: !!offersLink,
+                offersHref: offersLink?.href
+            });
+
+            return {
+                price: price,
+                offersLink: offersLink?.href || null
+            };
+        })
+        .filter(offer => offer && !isNaN(offer.price))
+        .sort((a, b) => a.price - b.price);
+
+    console.log('[Allegro Extension] All offers (sorted):', offers);
+
+    if (offers.length === 0) {
+        console.log('[Allegro Extension] No offers found');
+        return null;
+    }
+
+    const bestOffer = offers[0];
+    console.log('[Allegro Extension] Best offer:', bestOffer);
+
+    // If best offer has an offers link, we need to navigate there
+    if (bestOffer.offersLink) {
+        console.log('[Allegro Extension] Best offer has offers link, need to navigate');
+        return {
+            needsNavigation: true,
+            url: bestOffer.offersLink
+        };
+    }
+
+    // Otherwise, use the price directly
+    console.log('[Allegro Extension] Using direct price:', bestOffer.price);
+    return {
+        needsNavigation: false,
+        price: bestOffer.price
+    };
+}
+
+// Function to extract price from offers page
+function extractPriceFromOffers() {
+    console.log('[Allegro Extension] Extracting price from offers page...');
+
     const elements = document.querySelectorAll('.opbox-listing li p[tabindex="0"]');
-    console.log('[Allegro Extension] Found elements:', elements.length);
+    console.log('[Allegro Extension] Found price elements:', elements.length);
 
     const prices = [...elements]
         .map(i => {
@@ -49,6 +108,38 @@ function copyToClipboard(text) {
     }
 
     document.body.removeChild(textarea);
+}
+
+// Helper function to handle extracted price
+function handlePriceExtracted(allegroTabId, originTabId, gtin, price, shouldClickAgain) {
+    console.log('[Allegro Extension] Handling extracted price:', price);
+
+    // Copy to clipboard
+    chrome.scripting.executeScript({
+        target: { tabId: allegroTabId },
+        func: copyToClipboard,
+        args: [price.toString()]
+    }).then(() => {
+        console.log('[Allegro Extension] Copied to clipboard:', price);
+
+        // Close the Allegro tab
+        chrome.tabs.remove(allegroTabId, () => {
+            console.log('[Allegro Extension] Tab closed:', allegroTabId);
+        });
+
+        // Fill price on original page
+        chrome.scripting.executeScript({
+            target: { tabId: originTabId },
+            func: fillPriceInput,
+            args: [gtin, price.toString(), shouldClickAgain]
+        }).then(() => {
+            console.log('[Allegro Extension] Price filled on original page');
+        }).catch(err => {
+            console.error('[Allegro Extension] Error filling price:', err);
+        });
+    }).catch(err => {
+        console.error('[Allegro Extension] Clipboard error:', err);
+    });
 }
 
 // Function to fill price input on original page
@@ -258,43 +349,61 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                                 console.log('[Allegro Extension] Script results:', results);
 
                                 if (results && results[0] && results[0].result) {
-                                    const price = results[0].result;
-                                    console.log('[Allegro Extension] Price extracted:', price);
+                                    const result = results[0].result;
+                                    console.log('[Allegro Extension] Extraction result:', result);
 
-                                    // Copy to clipboard using textarea method
-                                    chrome.scripting.executeScript({
-                                        target: { tabId: tab.id },
-                                        func: copyToClipboard,
-                                        args: [price.toString()]
-                                    }).then(() => {
-                                        console.log('[Allegro Extension] Copied to clipboard:', price);
+                                    // Check if we need to navigate to offers page
+                                    if (result.needsNavigation) {
+                                        console.log('[Allegro Extension] Navigating to offers page:', result.url);
 
-                                        // Close the tab after copying
-                                        chrome.tabs.remove(tab.id, () => {
-                                            console.log('[Allegro Extension] Tab closed:', tab.id);
+                                        // Navigate to offers page
+                                        chrome.tabs.update(tab.id, { url: result.url }, () => {
+                                            // Wait for offers page to load
+                                            chrome.tabs.onUpdated.addListener(function offersListener(tabId, info) {
+                                                if (tabId === tab.id && info.status === 'complete') {
+                                                    chrome.tabs.onUpdated.removeListener(offersListener);
+
+                                                    setTimeout(() => {
+                                                        // Extract price from offers page
+                                                        chrome.scripting.executeScript({
+                                                            target: { tabId: tab.id },
+                                                            func: extractPriceFromOffers
+                                                        }).then((offersResults) => {
+                                                            if (offersResults && offersResults[0] && offersResults[0].result) {
+                                                                const price = offersResults[0].result;
+                                                                console.log('[Allegro Extension] Price from offers:', price);
+                                                                handlePriceExtracted(tab.id, sender.tab.id, gtin, price, shouldClickAgain);
+                                                            } else {
+                                                                console.warn('[Allegro Extension] No price found on offers page');
+                                                                chrome.tabs.remove(tab.id);
+                                                                processingUrls.delete(url);
+                                                            }
+                                                        }).catch(err => {
+                                                            console.error('[Allegro Extension] Offers extraction error:', err);
+                                                            chrome.tabs.remove(tab.id);
+                                                            processingUrls.delete(url);
+                                                        });
+                                                    }, 2000);
+                                                }
+                                            });
                                         });
-
-                                        // Now interact with the original page
-                                        chrome.scripting.executeScript({
-                                            target: { tabId: sender.tab.id },
-                                            func: fillPriceInput,
-                                            args: [gtin, price.toString(), shouldClickAgain]
-                                        }).then(() => {
-                                            console.log('[Allegro Extension] Price filled on original page');
-                                        }).catch(err => {
-                                            console.error('[Allegro Extension] Error filling price:', err);
-                                        });
-                                    }).catch(err => {
-                                        console.error('[Allegro Extension] Clipboard error:', err);
-                                    });
+                                    } else if (result.price) {
+                                        // Use direct price
+                                        console.log('[Allegro Extension] Using direct price:', result.price);
+                                        handlePriceExtracted(tab.id, sender.tab.id, gtin, result.price, shouldClickAgain);
+                                    } else {
+                                        console.warn('[Allegro Extension] No price found');
+                                        chrome.tabs.remove(tab.id);
+                                        processingUrls.delete(url);
+                                    }
                                 } else {
-                                    console.warn('[Allegro Extension] No price found on page');
+                                    console.warn('[Allegro Extension] No result from extraction');
+                                    chrome.tabs.remove(tab.id);
+                                    processingUrls.delete(url);
                                 }
-
-                                // Clean up
-                                processingUrls.delete(url);
                             }).catch(err => {
                                 console.error('[Allegro Extension] Script execution error:', err);
+                                chrome.tabs.remove(tab.id);
                                 processingUrls.delete(url);
                             });
                         }, 2000); // Wait 2 seconds for dynamic content
