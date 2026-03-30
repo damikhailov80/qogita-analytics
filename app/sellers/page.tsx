@@ -179,7 +179,7 @@ export default function SellersPage() {
                                 >
                                     <div className="flex items-center justify-end gap-1">
                                         Positive Items
-                                        {sortBy === 'positive_items_count' && (sortOrder === 'desc' ? ' ↓' : ' ↑')}
+                                        {mounted && sortBy === 'positive_items_count' && (sortOrder === 'desc' ? ' ↓' : ' ↑')}
                                     </div>
                                 </th>
                                 <th
@@ -188,7 +188,7 @@ export default function SellersPage() {
                                 >
                                     <div className="flex items-center justify-end gap-1">
                                         Total Sales Qty
-                                        {sortBy === 'total_positive_sales' && (sortOrder === 'desc' ? ' ↓' : ' ↑')}
+                                        {mounted && sortBy === 'total_positive_sales' && (sortOrder === 'desc' ? ' ↓' : ' ↑')}
                                     </div>
                                 </th>
                                 <th
@@ -197,7 +197,7 @@ export default function SellersPage() {
                                 >
                                     <div className="flex items-center justify-end gap-1">
                                         Max Cumulative Profit
-                                        {sortBy === 'max_cumulative_profit' && (sortOrder === 'desc' ? ' ↓' : ' ↑')}
+                                        {mounted && sortBy === 'max_cumulative_profit' && (sortOrder === 'desc' ? ' ↓' : ' ↑')}
                                     </div>
                                 </th>
                                 <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">

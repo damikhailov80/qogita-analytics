@@ -5,6 +5,7 @@ import { QogitaAPIClient } from '@/lib/qogita-client';
 import { parseCSVCatalog } from '@/lib/csv-parser';
 import { QogitaUpdateJobData, QOGITA_UPDATE_QUEUE_NAME, workerOptions } from '@/lib/workers/queue';
 import { executeWorkerJob, processBatches, calculateProgress, setupWorkerEventHandlers } from '@/lib/workers/worker-utils';
+import perfumeCategories from './perfume-categories.json';
 
 export const qogitaUpdateWorker = new Worker<QogitaUpdateJobData>(
     QOGITA_UPDATE_QUEUE_NAME,
@@ -39,6 +40,16 @@ export const qogitaUpdateWorker = new Worker<QogitaUpdateJobData>(
                 throw new Error('Не удалось получить данные из каталога');
             }
 
+            // Фильтруем парфюмерию
+            const perfumeCategorySet = new Set(perfumeCategories.perfumeCategories);
+            const filteredProducts = products.filter(p => !p.category || !perfumeCategorySet.has(p.category));
+            const perfumeSkipped = products.length - filteredProducts.length;
+
+            if (perfumeSkipped > 0) {
+                await logger.log(`🚫 Filtered out ${perfumeSkipped} perfume products`);
+            }
+            await logger.log(`${filteredProducts.length} products will be imported`);
+
             // Шаг 4: Удаление старых данных
             await logger.updateProgress(60);
             await logger.log('Clearing old products data...');
@@ -65,10 +76,10 @@ export const qogitaUpdateWorker = new Worker<QogitaUpdateJobData>(
 
             // Шаг 5: Загрузка новых данных
             await logger.updateProgress(70);
-            await logger.log(`Inserting ${products.length} products...`);
+            await logger.log(`Inserting ${filteredProducts.length} products...`);
 
             await processBatches(
-                products,
+                filteredProducts,
                 1000,
                 async (batch) => {
                     await prisma.product.createMany({
@@ -99,11 +110,15 @@ export const qogitaUpdateWorker = new Worker<QogitaUpdateJobData>(
 
             // Завершение
             await logger.updateProgress(100);
-            await logger.log(`Successfully loaded ${products.length} products`);
+            await logger.log(`✅ Successfully loaded ${filteredProducts.length} products`);
+            if (perfumeSkipped > 0) {
+                await logger.log(`🚫 Skipped ${perfumeSkipped} perfume products (filtered out)`);
+            }
 
             return {
                 success: true,
-                count: products.length
+                count: filteredProducts.length,
+                perfumeSkipped
             };
         });
     },

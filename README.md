@@ -21,6 +21,14 @@ npm install
 CREATE DATABASE qogita;
 ```
 
+### Сброс базы данных
+
+Если нужно полностью пересоздать базу данных:
+```sql
+DROP DATABASE qogita WITH (FORCE);
+CREATE DATABASE qogita;
+```
+
 2. Обновите `.env` файл с вашими данными подключения:
 ```env
 DATABASE_URL="postgresql://username:password@localhost:5432/qogita?schema=public"
