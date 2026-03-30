@@ -1,28 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { offersUpdateAllQueue, OFFERS_UPDATEALL_JOB_NAME } from '@/lib/workers/queue';
 
-// Функция для запуска обновления offers
-async function triggerOffersUpdate() {
+// Функция для обновления materialized view
+async function refreshOrderCandidates() {
     try {
-        // Проверяем активные задачи в очереди
-        const activeJobs = await offersUpdateAllQueue.getJobs(['waiting', 'active']);
-        const updateJobs = activeJobs.filter(j => j.name === OFFERS_UPDATEALL_JOB_NAME);
-
-        if (updateJobs.length > 0) {
-            console.log('[Allegro Changes] Offers update already in queue or running');
-            return;
-        }
-
-        // Создаем задачу в очереди
-        await offersUpdateAllQueue.add(OFFERS_UPDATEALL_JOB_NAME, {
-            triggeredAt: new Date(),
-            triggeredBy: 'allegro_changes'
-        });
-
-        console.log('[Allegro Changes] Offers update triggered');
+        await prisma.$executeRaw`REFRESH MATERIALIZED VIEW order_candidates`;
+        console.log('[Allegro Changes] Order candidates view refreshed');
     } catch (error) {
-        console.error('[Allegro Changes] Error triggering offers update:', error);
+        console.error('[Allegro Changes] Error refreshing order candidates view:', error);
     }
 }
 
@@ -101,8 +86,8 @@ export async function PATCH(
             }
         });
 
-        // Запускаем обновление offers в фоне
-        triggerOffersUpdate();
+        // Обновляем materialized view в фоне
+        refreshOrderCandidates();
 
         return NextResponse.json(change);
     } catch (error) {
@@ -134,8 +119,8 @@ export async function PUT(
                     where: { gtin }
                 });
 
-                // Запускаем обновление offers в фоне
-                triggerOffersUpdate();
+                // Обновляем materialized view в фоне
+                refreshOrderCandidates();
 
                 return NextResponse.json({ success: true, deleted: true });
             } catch (error) {
@@ -162,8 +147,8 @@ export async function PUT(
             }
         });
 
-        // Запускаем обновление offers в фоне
-        triggerOffersUpdate();
+        // Обновляем materialized view в фоне
+        refreshOrderCandidates();
 
         return NextResponse.json(change);
     } catch (error) {
@@ -187,8 +172,8 @@ export async function DELETE(
             where: { gtin }
         });
 
-        // Запускаем обновление offers в фоне
-        triggerOffersUpdate();
+        // Обновляем materialized view в фоне
+        refreshOrderCandidates();
 
         return NextResponse.json({ success: true });
     } catch (error) {
