@@ -156,7 +156,7 @@ export default function ProductsPage() {
             cell: ({ row }) => {
                 const price = row.getValue('lowestPriceIncShipping') as number | string | null;
                 return price ? (
-                    <div className="text-right font-medium">${Number(price).toFixed(2)}</div>
+                    <div className="text-right font-medium">€{Number(price).toFixed(2)}</div>
                 ) : (
                     <div className="text-right text-gray-400">-</div>
                 );

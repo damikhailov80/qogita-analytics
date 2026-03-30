@@ -48,6 +48,7 @@ export default function AllegroProductsPage() {
     }>({ manualPrice: '', isDisabled: false });
     const [totalPages, setTotalPages] = useState(0);
     const [totalCount, setTotalCount] = useState(0);
+    const [plnToEurRate, setPlnToEurRate] = useState<number>(4.5);
 
     const currentPage = parseInt(searchParams.get('page') || '1');
     const currentGtin = searchParams.get('gtin') || '';
@@ -87,6 +88,21 @@ export default function AllegroProductsPage() {
             setData(result.data);
             setTotalPages(result.pagination.totalPages);
             setTotalCount(result.pagination.totalCount);
+
+            // Получаем курс валюты из API
+            if (result.data.length > 0) {
+                try {
+                    const configResponse = await fetch('/api/config');
+                    if (configResponse.ok) {
+                        const config = await configResponse.json();
+                        if (config.plnToEurRate) {
+                            setPlnToEurRate(config.plnToEurRate);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching config:', error);
+                }
+            }
         } catch (error) {
             console.error('Error fetching allegro products:', error);
         } finally {
@@ -114,16 +130,24 @@ export default function AllegroProductsPage() {
 
     const handleEdit = (item: AllegroProduct) => {
         setEditingGtin(item.gtin);
+        // Конвертируем цену из EUR в PLN для редактирования
+        const priceInEur = item.changes?.manualPrice ? parseFloat(item.changes.manualPrice) : 0;
+        const priceInPln = priceInEur > 0 ? (priceInEur * plnToEurRate).toFixed(2) : '';
+
         setEditValues({
-            manualPrice: item.changes?.manualPrice || '',
+            manualPrice: priceInPln,
             isDisabled: item.changes?.isDisabled || false,
         });
     };
 
     const handleSave = async (gtin: string) => {
         try {
+            // Конвертируем цену из PLN в EUR для сохранения в базу
+            const priceInPln = editValues.manualPrice ? parseFloat(editValues.manualPrice) : 0;
+            const priceInEur = priceInPln > 0 ? priceInPln / plnToEurRate : null;
+
             const body = {
-                manualPrice: editValues.manualPrice ? parseFloat(editValues.manualPrice) : null,
+                manualPrice: priceInEur,
                 isDisabled: editValues.isDisabled,
             };
 
@@ -312,25 +336,35 @@ export default function AllegroProductsPage() {
                                                 </a>
                                             </td>
                                             <td className="p-4 align-middle text-right font-medium">
-                                                ${Number(item.price).toFixed(2)}
+                                                €{Number(item.price).toFixed(2)}
                                             </td>
                                             <td className="p-4 align-middle text-right">
                                                 {item.salesQuantity}
                                             </td>
                                             <td className="p-4 align-middle text-right">
                                                 {isEditing ? (
-                                                    <input
-                                                        type="number"
-                                                        step="0.01"
-                                                        value={editValues.manualPrice}
-                                                        onChange={(e) => setEditValues(prev => ({ ...prev, manualPrice: e.target.value }))}
-                                                        className="w-24 px-2 py-1 border rounded text-right"
-                                                        placeholder="Price"
-                                                    />
+                                                    <div className="flex flex-col items-end gap-1">
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={editValues.manualPrice}
+                                                            onChange={(e) => setEditValues(prev => ({ ...prev, manualPrice: e.target.value }))}
+                                                            className="w-24 px-2 py-1 border rounded text-right"
+                                                            placeholder="PLN"
+                                                        />
+                                                        <span className="text-xs text-gray-500">PLN</span>
+                                                    </div>
                                                 ) : (
-                                                    <span className={item.changes?.manualPrice ? 'text-blue-600 font-medium' : 'text-gray-400'}>
-                                                        {item.changes?.manualPrice ? `$${Number(item.changes.manualPrice).toFixed(2)}` : '-'}
-                                                    </span>
+                                                    <div className="flex flex-col items-end gap-1">
+                                                        <span className={item.changes?.manualPrice ? 'text-blue-600 font-medium' : 'text-gray-400'}>
+                                                            {item.changes?.manualPrice ? `€${Number(item.changes.manualPrice).toFixed(2)}` : '-'}
+                                                        </span>
+                                                        {item.changes?.manualPrice && (
+                                                            <span className="text-xs text-gray-500">
+                                                                {(Number(item.changes.manualPrice) * plnToEurRate).toFixed(2)} PLN
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </td>
                                             <td className="p-4 align-middle text-center">
