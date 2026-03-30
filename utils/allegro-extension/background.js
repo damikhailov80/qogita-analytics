@@ -1,5 +1,11 @@
 // Background service worker
 let processingUrls = new Set();
+let batchProcessingState = {
+    isProcessing: false,
+    links: [],
+    currentIndex: 0,
+    originTabId: null
+};
 
 // Function to extract price from Allegro page
 function extractPrice() {
@@ -54,7 +60,7 @@ function fillPriceInput(gtin, price, shouldClickAgain) {
     const button = document.querySelector(`button[data-gtin="${gtin}"]`);
     if (!button) {
         console.error('[Allegro Extension] Button not found for gtin:', gtin);
-        return;
+        return false;
     }
 
     console.log('[Allegro Extension] Button found, clicking...');
@@ -82,9 +88,126 @@ function fillPriceInput(gtin, price, shouldClickAgain) {
 
     // Stop checking after 5 seconds
     setTimeout(() => clearInterval(checkInput), 5000);
+
+    return true;
+}
+
+// Process single URL in batch
+function processBatchItem(url, originTabId) {
+    return new Promise((resolve, reject) => {
+        console.log('[Allegro Extension] Processing batch item:', url);
+
+        // Extract GTIN from URL
+        const gtinMatch = url.match(/string=(\d+)/);
+        if (!gtinMatch) {
+            console.error('[Allegro Extension] Could not extract GTIN from URL:', url);
+            resolve({ success: false, url });
+            return;
+        }
+        const gtin = gtinMatch[1];
+
+        // Open in new tab
+        chrome.tabs.create({
+            url: url,
+            active: false
+        }, (tab) => {
+            // Wait for page to load
+            chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
+                if (tabId === tab.id && info.status === 'complete') {
+                    chrome.tabs.onUpdated.removeListener(listener);
+
+                    // Add delay for DOM
+                    setTimeout(() => {
+                        // Extract price
+                        chrome.scripting.executeScript({
+                            target: { tabId: tab.id },
+                            func: extractPrice
+                        }).then((results) => {
+                            if (results && results[0] && results[0].result) {
+                                const price = results[0].result;
+                                console.log('[Allegro Extension] Batch price extracted:', price);
+
+                                // Close the Allegro tab
+                                chrome.tabs.remove(tab.id);
+
+                                // Fill price on original page with auto-save
+                                chrome.scripting.executeScript({
+                                    target: { tabId: originTabId },
+                                    func: fillPriceInput,
+                                    args: [gtin, price.toString(), true] // Always auto-save in batch
+                                }).then(() => {
+                                    // Wait for save to complete before resolving
+                                    setTimeout(() => {
+                                        resolve({ success: true, url, price });
+                                    }, 1000);
+                                }).catch(err => {
+                                    console.error('[Allegro Extension] Error filling price:', err);
+                                    resolve({ success: false, url, error: err });
+                                });
+                            } else {
+                                chrome.tabs.remove(tab.id);
+                                resolve({ success: false, url, error: 'No price found' });
+                            }
+                        }).catch(err => {
+                            chrome.tabs.remove(tab.id);
+                            resolve({ success: false, url, error: err });
+                        });
+                    }, 2000);
+                }
+            });
+        });
+    });
+}
+
+// Process batch sequentially
+async function processBatch(links, originTabId) {
+    console.log('[Allegro Extension] Starting batch processing of', links.length, 'links');
+
+    const results = [];
+
+    for (let i = 0; i < links.length; i++) {
+        batchProcessingState.currentIndex = i;
+
+        // Send progress update
+        chrome.tabs.sendMessage(originTabId, {
+            action: 'batchProcessingProgress',
+            current: i + 1,
+            total: links.length
+        }).catch(() => { });
+
+        const result = await processBatchItem(links[i], originTabId);
+        results.push(result);
+
+        console.log(`[Allegro Extension] Processed ${i + 1}/${links.length}`);
+    }
+
+    // Send completion message
+    chrome.tabs.sendMessage(originTabId, {
+        action: 'batchProcessingComplete',
+        count: results.filter(r => r.success).length,
+        total: links.length
+    }).catch(() => { });
+
+    batchProcessingState.isProcessing = false;
+    console.log('[Allegro Extension] Batch processing complete');
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'startBatchProcessing') {
+        if (batchProcessingState.isProcessing) {
+            console.log('[Allegro Extension] Batch processing already in progress');
+            return;
+        }
+
+        batchProcessingState.isProcessing = true;
+        batchProcessingState.links = message.links;
+        batchProcessingState.currentIndex = 0;
+        batchProcessingState.originTabId = sender.tab.id;
+
+        processBatch(message.links, sender.tab.id);
+        return;
+    }
+
     if (message.action === 'extractPrice') {
         const url = message.url;
         const shouldClickAgain = message.shouldClickAgain || false;
