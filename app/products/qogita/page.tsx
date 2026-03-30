@@ -402,7 +402,7 @@ export default function ProductsPage() {
         <div className="w-full py-10 px-4">
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold">Products</h1>
+                    <h1 className="text-3xl font-bold">Qogita Products</h1>
                     {(whiteListBrands.length > 0 || blackListBrands.length > 0 || whiteListCategories.length > 0 || blackListCategories.length > 0 || onlyAllegro) && (
                         <p className="text-sm text-gray-600 mt-1">
                             {whiteListBrands.length > 0 && `Бренды (белый): ${whiteListBrands.length}`}
@@ -496,7 +496,7 @@ export default function ProductsPage() {
 
             <div className="rounded-md border w-full overflow-hidden">
                 <div className="overflow-auto w-full">
-                    <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+                    <table className="w-full border-collapse" style={{ minWidth: '1400px' }}>
                         <thead className="bg-muted/50">
                             {table.getHeaderGroups().map((headerGroup) => (
                                 <tr key={headerGroup.id}>
@@ -504,7 +504,7 @@ export default function ProductsPage() {
                                         <th
                                             key={header.id}
                                             className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b relative"
-                                            style={{ width: header.getSize() }}
+                                            style={{ width: `${header.getSize()}px` }}
                                         >
                                             {header.isPlaceholder ? null : (
                                                 <div
@@ -552,7 +552,7 @@ export default function ProductsPage() {
                                             <td
                                                 key={cell.id}
                                                 className="p-4 align-middle overflow-hidden"
-                                                style={{ width: cell.column.getSize() }}
+                                                style={{ width: `${cell.column.getSize()}px` }}
                                             >
                                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                             </td>

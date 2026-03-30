@@ -25,8 +25,15 @@ export default function SellersPage() {
     const [sellers, setSellers] = useState<Seller[]>([]);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (!mounted) return;
+
         const fetchSellers = async () => {
             setLoading(true);
             try {
@@ -46,7 +53,7 @@ export default function SellersPage() {
         };
 
         fetchSellers();
-    }, [sortBy]);
+    }, [sortBy, mounted]);
 
     const handleSort = (field: SortField) => {
         if (sortBy === field) {
@@ -121,36 +128,38 @@ export default function SellersPage() {
                         Продавцы с наибольшей прибыльностью из order_candidates
                     </p>
                 </div>
-                <div className="flex gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={handleRefresh}
-                        disabled={updating}
-                    >
-                        {updating ? 'Обновление...' : 'Пересчитать данные'}
-                    </Button>
-                    <Button
-                        variant={sortBy === 'positive_items_count' ? 'default' : 'outline'}
-                        onClick={() => handleSort('positive_items_count')}
-                    >
-                        По количеству товаров
-                        {sortBy === 'positive_items_count' && (sortOrder === 'desc' ? ' ↓' : ' ↑')}
-                    </Button>
-                    <Button
-                        variant={sortBy === 'total_positive_sales' ? 'default' : 'outline'}
-                        onClick={() => handleSort('total_positive_sales')}
-                    >
-                        По продажам
-                        {sortBy === 'total_positive_sales' && (sortOrder === 'desc' ? ' ↓' : ' ↑')}
-                    </Button>
-                    <Button
-                        variant={sortBy === 'max_cumulative_profit' ? 'default' : 'outline'}
-                        onClick={() => handleSort('max_cumulative_profit')}
-                    >
-                        По прибыли
-                        {sortBy === 'max_cumulative_profit' && (sortOrder === 'desc' ? ' ↓' : ' ↑')}
-                    </Button>
-                </div>
+                {mounted && (
+                    <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={handleRefresh}
+                            disabled={updating}
+                        >
+                            {updating ? 'Обновление...' : 'Пересчитать данные'}
+                        </Button>
+                        <Button
+                            variant={sortBy === 'positive_items_count' ? 'default' : 'outline'}
+                            onClick={() => handleSort('positive_items_count')}
+                        >
+                            По количеству товаров
+                            {sortBy === 'positive_items_count' && (sortOrder === 'desc' ? ' ↓' : ' ↑')}
+                        </Button>
+                        <Button
+                            variant={sortBy === 'total_positive_sales' ? 'default' : 'outline'}
+                            onClick={() => handleSort('total_positive_sales')}
+                        >
+                            По продажам
+                            {sortBy === 'total_positive_sales' && (sortOrder === 'desc' ? ' ↓' : ' ↑')}
+                        </Button>
+                        <Button
+                            variant={sortBy === 'max_cumulative_profit' ? 'default' : 'outline'}
+                            onClick={() => handleSort('max_cumulative_profit')}
+                        >
+                            По прибыли
+                            {sortBy === 'max_cumulative_profit' && (sortOrder === 'desc' ? ' ↓' : ' ↑')}
+                        </Button>
+                    </div>
+                )}
             </div>
 
             <div className="rounded-md border w-full overflow-hidden">

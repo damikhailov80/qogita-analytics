@@ -230,13 +230,13 @@ export default function AllegroProductsPage() {
 
             <div className="rounded-md border w-full overflow-hidden">
                 <div className="overflow-auto w-full">
-                    <table className="w-full border-collapse">
+                    <table className="w-full border-collapse" style={{ tableLayout: 'fixed', minWidth: '100%' }}>
                         <thead className="bg-muted/50">
                             <tr>
-                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b" style={{ width: '80px' }}>
                                     Image
                                 </th>
-                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b" style={{ width: '140px' }}>
                                     <div
                                         className="cursor-pointer select-none flex items-center gap-1"
                                         onClick={() => handleSort('gtin')}
@@ -247,25 +247,25 @@ export default function AllegroProductsPage() {
                                         )}
                                     </div>
                                 </th>
-                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b" style={{ width: '250px' }}>
                                     Name
                                 </th>
-                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b" style={{ width: '120px' }}>
                                     Brand
                                 </th>
-                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b" style={{ width: '150px' }}>
                                     Category
                                 </th>
-                                <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground border-b" style={{ width: '80px' }}>
                                     Link
                                 </th>
-                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b" style={{ width: '120px' }}>
                                     Allegro Price
                                 </th>
-                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b" style={{ width: '100px' }}>
                                     Sales Qty
                                 </th>
-                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b" style={{ width: '130px' }}>
                                     <div
                                         className="cursor-pointer select-none flex items-center justify-end gap-1"
                                         onClick={() => handleSort('manualPrice')}
@@ -276,7 +276,7 @@ export default function AllegroProductsPage() {
                                         )}
                                     </div>
                                 </th>
-                                <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground border-b" style={{ width: '100px' }}>
                                     <div
                                         className="cursor-pointer select-none flex items-center justify-center gap-1"
                                         onClick={() => handleSort('isDisabled')}
@@ -287,7 +287,7 @@ export default function AllegroProductsPage() {
                                         )}
                                     </div>
                                 </th>
-                                <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground border-b" style={{ width: '150px' }}>
                                     Actions
                                 </th>
                             </tr>
