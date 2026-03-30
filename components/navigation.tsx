@@ -11,6 +11,7 @@ export function Navigation() {
         { href: '/products/qogita', label: 'Qogita Products' },
         { href: '/products/allegro', label: 'Allegro Products' },
         { href: '/sellers', label: 'Sellers' },
+        { href: '/sellers/suspicious', label: 'Suspicious Products' },
     ];
 
     return (

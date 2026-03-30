@@ -26,7 +26,7 @@ type ProductItem = {
     name: string;
     category: string | null;
     brand: string | null;
-    lowestPriceIncShipping: number | string | null;
+    lowestPrice: number | string | null;
     unit: string | null;
     lowestPricedOfferInventory: number | null;
     isPreOrder: boolean;
@@ -120,7 +120,7 @@ export default function ProductsPage() {
             minSize: 150,
             enableResizing: true,
             enableHiding: false, // Всегда показываем название
-            cell: ({ row }) => <div className="font-medium truncate" title={row.getValue('name')}>{row.getValue('name')}</div>,
+            cell: ({ row }) => <div className="font-medium max-w-xs truncate" title={row.getValue('name')}>{row.getValue('name')}</div>,
         },
         {
             accessorKey: 'brand',
@@ -147,14 +147,14 @@ export default function ProductsPage() {
             },
         },
         {
-            accessorKey: 'lowestPriceIncShipping',
+            accessorKey: 'lowestPrice',
             header: 'Price',
             size: 100,
             minSize: 80,
             enableResizing: true,
             enableHiding: true,
             cell: ({ row }) => {
-                const price = row.getValue('lowestPriceIncShipping') as number | string | null;
+                const price = row.getValue('lowestPrice') as number | string | null;
                 return price ? (
                     <div className="text-right font-medium">€{Number(price).toFixed(2)}</div>
                 ) : (
