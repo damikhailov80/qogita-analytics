@@ -191,7 +191,7 @@ export default function SellerDetailPage() {
                                         </td>
                                         <td className="p-4 align-middle text-right">
                                             <div className={order.profit_ratio > 0 ? 'text-green-600 font-medium' : 'text-red-600'}>
-                                                {(Number(order.profit_ratio) * 100).toFixed(2)}%
+                                                {Number(order.profit_ratio).toFixed(2)}%
                                             </div>
                                         </td>
                                         <td className="p-4 align-middle text-right">

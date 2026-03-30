@@ -43,11 +43,80 @@ export default function BaseUpdate({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const logsEndRef = useRef<HTMLDivElement>(null);
+    const isInitializedRef = useRef(false);
 
     useEffect(() => {
-        fetchLastLog();
-        checkActiveJob();
-    }, []);
+        // Предотвращаем повторную инициализацию
+        if (isInitializedRef.current) {
+            return;
+        }
+        isInitializedRef.current = true;
+
+        const initializeStatus = async () => {
+            try {
+                // Сначала проверяем активную задачу в Redis
+                const activeResponse = await fetch(updateEndpoint);
+
+                if (activeResponse.ok) {
+                    const activeData = await activeResponse.json();
+
+                    // Если есть активная или ожидающая задача - показываем её и начинаем polling
+                    if (activeData.state === 'active' || activeData.state === 'waiting') {
+                        setStatus(activeData);
+                        setUpdating(true);
+                        pollStatus();
+                        return; // Не загружаем исторические данные
+                    }
+
+                    // Если задача завершена или упала в Redis - показываем её
+                    if (activeData.state === 'completed' || activeData.state === 'failed') {
+                        setStatus(activeData);
+                        if (activeData.state === 'failed' && activeData.error) {
+                            setError(activeData.error);
+                        }
+                        if (activeData.finishedAt) {
+                            setLastUpdateTime(activeData.finishedAt);
+                        }
+                        setUpdating(false);
+                        return; // Не загружаем исторические данные
+                    }
+                }
+
+                // Если в Redis нет задачи (404) - загружаем последний лог из БД
+                if (activeResponse.status === 404) {
+                    const logsResponse = await fetch(logEndpoint);
+                    if (logsResponse.ok) {
+                        const logs = await logsResponse.json();
+                        if (logs.length > 0) {
+                            const lastLog = logs[0];
+                            if (lastLog.status === 'completed' || lastLog.status === 'failed') {
+                                setStatus({
+                                    state: lastLog.status,
+                                    progress: lastLog.status === 'completed' ? 100 : 0,
+                                    logs: lastLog.logs || [],
+                                    result: lastLog.result,
+                                    error: lastLog.error
+                                });
+                                if (lastLog.status === 'failed' && lastLog.error) {
+                                    setError(lastLog.error);
+                                }
+                                if (lastLog.completedAt) {
+                                    setLastUpdateTime(lastLog.completedAt);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                setUpdating(false);
+            } catch (err) {
+                console.error('Error initializing status:', err);
+                setUpdating(false);
+            }
+        };
+
+        initializeStatus();
+    }, [updateEndpoint, logEndpoint]);
 
     // Автоскролл к последнему логу
     useEffect(() => {
@@ -55,120 +124,6 @@ export default function BaseUpdate({
             logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     }, [status?.logs]);
-
-    const checkActiveJob = async () => {
-        try {
-            const response = await fetch(updateEndpoint);
-            if (response.ok) {
-                const data = await response.json();
-                // Если есть активный или ожидающий job - начинаем polling
-                if (data.state === 'active' || data.state === 'waiting') {
-                    setStatus(data);
-                    setUpdating(true);
-                    pollStatus();
-                } else if (data.state === 'failed') {
-                    // Если job упал - показываем ошибку, но не блокируем UI
-                    setStatus(data);
-                    setError(data.error || 'Предыдущая задача завершилась с ошибкой');
-                    setUpdating(false);
-                }
-            }
-        } catch (err) {
-            console.error('Error checking active job:', err);
-            // При ошибке проверки не блокируем UI
-            setUpdating(false);
-        }
-    };
-
-    const fetchLastLog = async () => {
-        try {
-            const response = await fetch(logEndpoint);
-            if (response.ok) {
-                const logs = await response.json();
-                if (logs.length > 0) {
-                    const lastLog = logs[0];
-                    console.log('[BaseUpdate] Last log from DB:', lastLog);
-                    console.log('[BaseUpdate] Result:', lastLog.result);
-                    if (lastLog.status === 'completed' || lastLog.status === 'failed') {
-                        setStatus({
-                            state: lastLog.status,
-                            progress: lastLog.status === 'completed' ? 100 : 0,
-                            logs: lastLog.logs || [],
-                            result: lastLog.result,
-                            error: lastLog.error
-                        });
-                        if (lastLog.status === 'failed' && lastLog.error) {
-                            setError(lastLog.error);
-                        }
-                        if (lastLog.completedAt) {
-                            setLastUpdateTime(lastLog.completedAt);
-                        }
-                    }
-                }
-            }
-        } catch (err) {
-            console.error('Error fetching last log:', err);
-        }
-    };
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        const fileExtension = acceptedFileTypes.replace('.', '');
-
-        if (selectedFile && selectedFile.name.endsWith(fileExtension)) {
-            setFile(selectedFile);
-            setError(null);
-        } else {
-            setError(`Пожалуйста, выберите ${fileExtension.toUpperCase()} файл`);
-            setFile(null);
-        }
-    };
-
-    const handleUpdate = async () => {
-        if (requiresFile && !file) {
-            setError('Выберите файл для загрузки');
-            return;
-        }
-
-        if (onBeforeUpdate && !onBeforeUpdate()) {
-            return;
-        }
-
-        if (!confirm(confirmMessage)) {
-            return;
-        }
-
-        try {
-            // Полностью сбрасываем состояние перед новым запуском
-            setUpdating(true);
-            setError(null);
-            setStatus(null);
-            setLastUpdateTime(null);
-
-            const body = requiresFile && file ? (() => {
-                const formData = new FormData();
-                formData.append('file', file);
-                return formData;
-            })() : undefined;
-
-            const response = await fetch(updateEndpoint, {
-                method: 'POST',
-                body,
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Ошибка запуска обновления');
-            }
-
-            pollStatus();
-        } catch (err: any) {
-            setError(err.message || 'Ошибка при запуске обновления');
-            setUpdating(false);
-            setStatus(null);
-        }
-    };
 
     const pollStatus = () => {
         if (pollIntervalRef.current) {
@@ -236,6 +191,65 @@ export default function BaseUpdate({
                 setError('Превышено время ожидания обработки');
             }
         }, 1800000);
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = e.target.files?.[0];
+        const fileExtension = acceptedFileTypes.replace('.', '');
+
+        if (selectedFile && selectedFile.name.endsWith(fileExtension)) {
+            setFile(selectedFile);
+            setError(null);
+        } else {
+            setError(`Пожалуйста, выберите ${fileExtension.toUpperCase()} файл`);
+            setFile(null);
+        }
+    };
+
+    const handleUpdate = async () => {
+        if (requiresFile && !file) {
+            setError('Выберите файл для загрузки');
+            return;
+        }
+
+        if (onBeforeUpdate && !onBeforeUpdate()) {
+            return;
+        }
+
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        try {
+            // Полностью сбрасываем состояние перед новым запуском
+            setUpdating(true);
+            setError(null);
+            setStatus(null);
+            setLastUpdateTime(null);
+
+            const body = requiresFile && file ? (() => {
+                const formData = new FormData();
+                formData.append('file', file);
+                return formData;
+            })() : undefined;
+
+            const response = await fetch(updateEndpoint, {
+                method: 'POST',
+                body,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Ошибка запуска обновления');
+            }
+
+            pollStatus();
+        } catch (err: any) {
+            setError(err.message || 'Ошибка при запуске обновления');
+            setUpdating(false);
+            setStatus(null);
+        }
     };
 
     const getStatusLabel = (state: string) => {
