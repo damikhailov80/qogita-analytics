@@ -1,6 +1,10 @@
 {
     "typescript.autoClosingTags": false,
     "kiroAgent.configureMCP": "Disabled",
-    "audioCues.chatResponseReceived": "off",
-    "audioCues.taskCompleted": "off"
+    "accessibility.signals.taskCompleted": {
+        "sound": "off"
+    },
+    "accessibility.signals.chatResponseReceived": {
+        "sound": "off"
+    }
 }

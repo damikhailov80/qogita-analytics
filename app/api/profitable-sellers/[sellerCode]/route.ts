@@ -29,6 +29,7 @@ export async function GET(
                 image_url: string | null;
                 product_url: string | null;
                 sales_quantity: number | null;
+                manual_price: string | null;
             }>
         >(Prisma.sql`
             SELECT 
@@ -49,10 +50,12 @@ export async function GET(
                 oc.is_unprofitable,
                 p.image_url,
                 p.product_url,
-                pa.sales_quantity
+                pa.sales_quantity,
+                pac.manual_price
             FROM order_candidates oc
             LEFT JOIN products p ON p.gtin = oc.gtin
             LEFT JOIN products_allegro pa ON pa.gtin = oc.gtin
+            LEFT JOIN products_allegro_changes pac ON pac.gtin = oc.gtin
             WHERE oc.seller_code = ${sellerCode}
             ORDER BY oc.rn
         `);
@@ -76,6 +79,7 @@ export async function GET(
             image_url: order.image_url,
             product_url: order.product_url,
             sales_quantity: order.sales_quantity,
+            manual_price: order.manual_price,
         }));
 
         return NextResponse.json({

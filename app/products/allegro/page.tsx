@@ -138,6 +138,15 @@ export default function AllegroProductsPage() {
             manualPrice: priceInPln,
             isDisabled: item.changes?.isDisabled || false,
         });
+
+        // Устанавливаем фокус на input после рендера
+        setTimeout(() => {
+            const input = document.querySelector(`input[data-gtin="${item.gtin}"]`) as HTMLInputElement;
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }, 0);
     };
 
     const handleSave = async (gtin: string) => {
@@ -351,6 +360,7 @@ export default function AllegroProductsPage() {
                                                             onChange={(e) => setEditValues(prev => ({ ...prev, manualPrice: e.target.value }))}
                                                             className="w-24 px-2 py-1 border rounded text-right"
                                                             placeholder="PLN"
+                                                            data-gtin={item.gtin}
                                                         />
                                                         <span className="text-xs text-gray-500">PLN</span>
                                                     </div>
@@ -404,6 +414,7 @@ export default function AllegroProductsPage() {
                                                             size="sm"
                                                             variant="outline"
                                                             onClick={() => handleEdit(item)}
+                                                            data-gtin={item.gtin}
                                                         >
                                                             Edit
                                                         </Button>

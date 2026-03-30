@@ -162,7 +162,7 @@ ranked AS (
     b.*,
     ROW_NUMBER() OVER (
       PARTITION BY seller_code
-      ORDER BY unit_profit DESC
+      ORDER BY profit_ratio DESC
     ) AS rn
   FROM base b
 ),
