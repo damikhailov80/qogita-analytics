@@ -22,48 +22,74 @@ export async function GET(request: NextRequest) {
         // Получаем общее количество
         const totalCount = await prisma.productAllegro.count({ where });
 
-        // Определяем сортировку
-        let orderBy: any = {};
+        // Для сортировки по полям из changes нужен другой подход
+        let products;
 
-        if (sortField === 'manualPrice') {
-            // Сортировка по manual_price из таблицы changes
-            orderBy = {
-                changes: {
-                    manualPrice: sortOrder,
+        if (sortField === 'manualPrice' || sortField === 'isDisabled') {
+            // Получаем все продукты без пагинации для сортировки
+            const allProducts = await prisma.productAllegro.findMany({
+                where,
+                include: {
+                    product: {
+                        select: {
+                            name: true,
+                            brand: true,
+                            category: true,
+                            imageUrl: true,
+                        }
+                    },
+                    changes: true,
+                },
+            });
+
+            // Сортируем в памяти
+            allProducts.sort((a, b) => {
+                let aValue: any;
+                let bValue: any;
+
+                if (sortField === 'manualPrice') {
+                    aValue = a.changes?.manualPrice ?? null;
+                    bValue = b.changes?.manualPrice ?? null;
+                } else if (sortField === 'isDisabled') {
+                    aValue = a.changes?.isDisabled ?? false;
+                    bValue = b.changes?.isDisabled ?? false;
                 }
-            };
-        } else if (sortField === 'isDisabled') {
-            // Сортировка по is_disabled из таблицы changes
-            orderBy = {
-                changes: {
-                    isDisabled: sortOrder,
-                }
-            };
+
+                // Обработка null значений - они всегда в конце
+                if (aValue === null && bValue === null) return 0;
+                if (aValue === null) return 1;
+                if (bValue === null) return -1;
+
+                // Сравнение значений
+                if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+                if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            // Применяем пагинацию после сортировки
+            products = allProducts.slice(skip, skip + pageSize);
         } else {
             // Обычная сортировка по полям ProductAllegro
-            orderBy = {
-                [sortField]: sortOrder,
-            };
-        }
-
-        // Получаем данные с пагинацией
-        const products = await prisma.productAllegro.findMany({
-            where,
-            include: {
-                product: {
-                    select: {
-                        name: true,
-                        brand: true,
-                        category: true,
-                        imageUrl: true,
-                    }
+            products = await prisma.productAllegro.findMany({
+                where,
+                include: {
+                    product: {
+                        select: {
+                            name: true,
+                            brand: true,
+                            category: true,
+                            imageUrl: true,
+                        }
+                    },
+                    changes: true,
                 },
-                changes: true,
-            },
-            orderBy,
-            skip,
-            take: pageSize,
-        });
+                orderBy: {
+                    [sortField]: sortOrder,
+                },
+                skip,
+                take: pageSize,
+            });
+        }
 
         const totalPages = Math.ceil(totalCount / pageSize);
 
