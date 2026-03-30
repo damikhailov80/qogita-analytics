@@ -1,5 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { offersUpdateAllQueue, OFFERS_UPDATEALL_JOB_NAME } from '@/lib/workers/queue';
+
+// Функция для запуска обновления offers
+async function triggerOffersUpdate() {
+    try {
+        // Проверяем активные задачи в очереди
+        const activeJobs = await offersUpdateAllQueue.getJobs(['waiting', 'active']);
+        const updateJobs = activeJobs.filter(j => j.name === OFFERS_UPDATEALL_JOB_NAME);
+
+        if (updateJobs.length > 0) {
+            console.log('[Allegro Changes] Offers update already in queue or running');
+            return;
+        }
+
+        // Создаем задачу в очереди
+        await offersUpdateAllQueue.add(OFFERS_UPDATEALL_JOB_NAME, {
+            triggeredAt: new Date(),
+            triggeredBy: 'allegro_changes'
+        });
+
+        console.log('[Allegro Changes] Offers update triggered');
+    } catch (error) {
+        console.error('[Allegro Changes] Error triggering offers update:', error);
+    }
+}
 
 // GET - получить изменение по GTIN
 export async function GET(
@@ -76,6 +101,9 @@ export async function PATCH(
             }
         });
 
+        // Запускаем обновление offers в фоне
+        triggerOffersUpdate();
+
         return NextResponse.json(change);
     } catch (error) {
         console.error('Error updating allegro change:', error);
@@ -96,22 +124,46 @@ export async function PUT(
         const body = await request.json();
         const { manualPrice, isDisabled } = body;
 
+        const parsedManualPrice = manualPrice ? parseFloat(manualPrice) : null;
+        const parsedIsDisabled = isDisabled ?? false;
+
+        // Если все изменения сброшены (нет manual price и не disabled), удаляем запись
+        if (!parsedManualPrice && !parsedIsDisabled) {
+            try {
+                await prisma.productAllegroChanges.delete({
+                    where: { gtin }
+                });
+
+                // Запускаем обновление offers в фоне
+                triggerOffersUpdate();
+
+                return NextResponse.json({ success: true, deleted: true });
+            } catch (error) {
+                // Если запись не существует, это нормально
+                return NextResponse.json({ success: true, deleted: false });
+            }
+        }
+
+        // Иначе создаем или обновляем запись
         const change = await prisma.productAllegroChanges.upsert({
             where: { gtin },
             create: {
                 gtin,
-                manualPrice: manualPrice ? parseFloat(manualPrice) : null,
-                isDisabled: isDisabled ?? false,
+                manualPrice: parsedManualPrice,
+                isDisabled: parsedIsDisabled,
             },
             update: {
-                manualPrice: manualPrice ? parseFloat(manualPrice) : null,
-                isDisabled: isDisabled ?? false,
+                manualPrice: parsedManualPrice,
+                isDisabled: parsedIsDisabled,
             },
             include: {
                 product: true,
                 allegroProduct: true,
             }
         });
+
+        // Запускаем обновление offers в фоне
+        triggerOffersUpdate();
 
         return NextResponse.json(change);
     } catch (error) {
@@ -134,6 +186,9 @@ export async function DELETE(
         await prisma.productAllegroChanges.delete({
             where: { gtin }
         });
+
+        // Запускаем обновление offers в фоне
+        triggerOffersUpdate();
 
         return NextResponse.json({ success: true });
     } catch (error) {

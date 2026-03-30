@@ -232,6 +232,9 @@ export default function AllegroProductsPage() {
                                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b">
                                     Category
                                 </th>
+                                <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground border-b">
+                                    Link
+                                </th>
                                 <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">
                                     Allegro Price
                                 </th>
@@ -268,7 +271,7 @@ export default function AllegroProductsPage() {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={10} className="h-24 text-center">
+                                    <td colSpan={11} className="h-24 text-center">
                                         Loading...
                                     </td>
                                 </tr>
@@ -297,6 +300,16 @@ export default function AllegroProductsPage() {
                                             </td>
                                             <td className="p-4 align-middle">
                                                 {item.product.category || '-'}
+                                            </td>
+                                            <td className="p-4 align-middle text-center">
+                                                <a
+                                                    href={`https://business.allegro.pl/listing?string=${item.gtin}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-orange-600 hover:underline text-sm"
+                                                >
+                                                    Allegro
+                                                </a>
                                             </td>
                                             <td className="p-4 align-middle text-right font-medium">
                                                 ${Number(item.price).toFixed(2)}
@@ -377,7 +390,7 @@ export default function AllegroProductsPage() {
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan={10} className="h-24 text-center">
+                                    <td colSpan={11} className="h-24 text-center">
                                         {currentGtin ? 'Нет результатов' : 'No products'}
                                     </td>
                                 </tr>

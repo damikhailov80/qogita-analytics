@@ -182,7 +182,12 @@ export default function SellerDetailPage() {
                                             <div>€{Number(order.buy_price).toFixed(2)}</div>
                                         </td>
                                         <td className="p-4 align-middle text-right">
-                                            <div>€{Number(order.sell_price).toFixed(2)}</div>
+                                            <a
+                                                href={`/products/allegro?gtin=${order.gtin}`}
+                                                className="text-blue-600 hover:underline"
+                                            >
+                                                €{Number(order.sell_price).toFixed(2)}
+                                            </a>
                                         </td>
                                         <td className="p-4 align-middle text-right">
                                             <div className={order.unit_profit > 0 ? 'text-green-600 font-medium' : 'text-red-600'}>
