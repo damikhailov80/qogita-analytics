@@ -29,23 +29,21 @@ model Product {
 }
 
 model ProductAllegro {
-  id            Int                      @id @default(autoincrement())
-  gtin          String                   @unique @db.VarChar(14)
-  salesQuantity Int                      @map("sales_quantity")
-  price         Decimal                  @db.Decimal(10, 2)
-  product       Product                  @relation(fields: [gtin], references: [gtin])
-  changes       ProductAllegroChanges?
+  id            Int     @id @default(autoincrement())
+  gtin          String  @unique @db.VarChar(14)
+  salesQuantity Int     @map("sales_quantity")
+  price         Decimal @db.Decimal(10, 2)
+  product       Product @relation(fields: [gtin], references: [gtin])
 
   @@map("products_allegro")
 }
 
 model ProductAllegroChanges {
-  id              Int            @id @default(autoincrement())
-  gtin            String         @unique @db.VarChar(14)
-  manualPrice     Decimal?       @map("manual_price") @db.Decimal(10, 2)
-  isDisabled      Boolean        @default(false) @map("is_disabled")
-  product         Product        @relation(fields: [gtin], references: [gtin], map: "products_allegro_changes_product_fkey")
-  allegroProduct  ProductAllegro @relation(fields: [gtin], references: [gtin], map: "products_allegro_changes_allegro_fkey")
+  id          Int      @id @default(autoincrement())
+  gtin        String   @unique @db.VarChar(14)
+  manualPrice Decimal? @map("manual_price") @db.Decimal(10, 2)
+  isDisabled  Boolean  @default(false) @map("is_disabled")
+  product     Product  @relation(fields: [gtin], references: [gtin])
 
   @@map("products_allegro_changes")
 }

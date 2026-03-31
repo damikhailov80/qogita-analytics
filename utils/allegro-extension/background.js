@@ -110,6 +110,69 @@ function copyToClipboard(text) {
     document.body.removeChild(textarea);
 }
 
+// Helper function to extract price with optional navigation to offers page
+function extractPriceWithNavigation(tabId, callback) {
+    chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        func: extractPrice
+    }).then((results) => {
+        console.log('[Allegro Extension] Script results:', results);
+
+        if (results && results[0] && results[0].result) {
+            const result = results[0].result;
+            console.log('[Allegro Extension] Extraction result:', result);
+
+            // Check if we need to navigate to offers page
+            if (result.needsNavigation) {
+                console.log('[Allegro Extension] Navigating to offers page:', result.url);
+
+                // Navigate to offers page
+                chrome.tabs.update(tabId, { url: result.url }, () => {
+                    // Wait for offers page to load
+                    chrome.tabs.onUpdated.addListener(function offersListener(tabIdUpdated, info) {
+                        if (tabIdUpdated === tabId && info.status === 'complete') {
+                            chrome.tabs.onUpdated.removeListener(offersListener);
+
+                            setTimeout(() => {
+                                // Extract price from offers page
+                                chrome.scripting.executeScript({
+                                    target: { tabId: tabId },
+                                    func: extractPriceFromOffers
+                                }).then((offersResults) => {
+                                    if (offersResults && offersResults[0] && offersResults[0].result) {
+                                        const price = offersResults[0].result;
+                                        console.log('[Allegro Extension] Price from offers:', price);
+                                        callback({ success: true, price: price });
+                                    } else {
+                                        console.warn('[Allegro Extension] No price found on offers page');
+                                        callback({ success: false, error: 'No price on offers page' });
+                                    }
+                                }).catch(err => {
+                                    console.error('[Allegro Extension] Offers extraction error:', err);
+                                    callback({ success: false, error: err });
+                                });
+                            }, 2000);
+                        }
+                    });
+                });
+            } else if (result.price) {
+                // Use direct price
+                console.log('[Allegro Extension] Using direct price:', result.price);
+                callback({ success: true, price: result.price });
+            } else {
+                console.warn('[Allegro Extension] No price found');
+                callback({ success: false, error: 'No price found' });
+            }
+        } else {
+            console.warn('[Allegro Extension] No result from extraction');
+            callback({ success: false, error: 'No result from extraction' });
+        }
+    }).catch(err => {
+        console.error('[Allegro Extension] Script execution error:', err);
+        callback({ success: false, error: err });
+    });
+}
+
 // Helper function to handle extracted price
 function handlePriceExtracted(allegroTabId, originTabId, gtin, price, shouldClickAgain) {
     console.log('[Allegro Extension] Handling extracted price:', price);
@@ -215,29 +278,60 @@ function processBatchItem(url, originTabId) {
                             func: extractPrice
                         }).then((results) => {
                             if (results && results[0] && results[0].result) {
-                                const price = results[0].result;
-                                console.log('[Allegro Extension] Batch price extracted:', price);
+                                const result = results[0].result;
+                                console.log('[Allegro Extension] Batch extraction result:', result);
 
-                                // Close the Allegro tab
-                                chrome.tabs.remove(tab.id);
+                                // Check if we need to navigate to offers page
+                                if (result.needsNavigation) {
+                                    console.log('[Allegro Extension] Batch: Navigating to offers page:', result.url);
 
-                                // Fill price on original page with auto-save
-                                chrome.scripting.executeScript({
-                                    target: { tabId: originTabId },
-                                    func: fillPriceInput,
-                                    args: [gtin, price.toString(), true] // Always auto-save in batch
-                                }).then(() => {
-                                    // Wait for save to complete before resolving
-                                    setTimeout(() => {
-                                        resolve({ success: true, url, price });
-                                    }, 1000);
-                                }).catch(err => {
-                                    console.error('[Allegro Extension] Error filling price:', err);
-                                    resolve({ success: false, url, error: err });
-                                });
+                                    // Navigate to offers page
+                                    chrome.tabs.update(tab.id, { url: result.url }, () => {
+                                        // Wait for offers page to load
+                                        chrome.tabs.onUpdated.addListener(function offersListener(tabId, info) {
+                                            if (tabId === tab.id && info.status === 'complete') {
+                                                chrome.tabs.onUpdated.removeListener(offersListener);
+
+                                                setTimeout(() => {
+                                                    // Extract price from offers page
+                                                    chrome.scripting.executeScript({
+                                                        target: { tabId: tab.id },
+                                                        func: extractPriceFromOffers
+                                                    }).then((offersResults) => {
+                                                        if (offersResults && offersResults[0] && offersResults[0].result) {
+                                                            const price = offersResults[0].result;
+                                                            console.log('[Allegro Extension] Batch price from offers:', price);
+
+                                                            // Close tab and fill price
+                                                            chrome.tabs.remove(tab.id);
+                                                            fillPriceAndResolve(originTabId, gtin, price, resolve, url);
+                                                        } else {
+                                                            console.warn('[Allegro Extension] Batch: No price found on offers page');
+                                                            chrome.tabs.remove(tab.id);
+                                                            resolve({ success: false, url, error: 'No price on offers page' });
+                                                        }
+                                                    }).catch(err => {
+                                                        console.error('[Allegro Extension] Batch offers extraction error:', err);
+                                                        chrome.tabs.remove(tab.id);
+                                                        resolve({ success: false, url, error: err });
+                                                    });
+                                                }, 2000);
+                                            }
+                                        });
+                                    });
+                                } else if (result.price) {
+                                    // Use direct price
+                                    console.log('[Allegro Extension] Batch: Using direct price:', result.price);
+                                    chrome.tabs.remove(tab.id);
+                                    fillPriceAndResolve(originTabId, gtin, result.price, resolve, url);
+                                } else {
+                                    console.warn('[Allegro Extension] Batch: No price found');
+                                    chrome.tabs.remove(tab.id);
+                                    resolve({ success: false, url, error: 'No price found' });
+                                }
                             } else {
                                 chrome.tabs.remove(tab.id);
-                                resolve({ success: false, url, error: 'No price found' });
+                                resolve({ success: false, url, error: 'No result from extraction' });
                             }
                         }).catch(err => {
                             chrome.tabs.remove(tab.id);
@@ -247,6 +341,23 @@ function processBatchItem(url, originTabId) {
                 }
             });
         });
+    });
+}
+
+// Helper function to fill price and resolve batch promise
+function fillPriceAndResolve(originTabId, gtin, price, resolve, url) {
+    chrome.scripting.executeScript({
+        target: { tabId: originTabId },
+        func: fillPriceInput,
+        args: [gtin, price.toString(), true] // Always auto-save in batch
+    }).then(() => {
+        // Wait for save to complete before resolving
+        setTimeout(() => {
+            resolve({ success: true, url, price });
+        }, 1000);
+    }).catch(err => {
+        console.error('[Allegro Extension] Error filling price:', err);
+        resolve({ success: false, url, error: err });
     });
 }
 
@@ -341,69 +452,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
                         // Add delay to ensure DOM is ready
                         setTimeout(() => {
-                            // Inject and execute price extraction script
-                            chrome.scripting.executeScript({
-                                target: { tabId: tab.id },
-                                func: extractPrice
-                            }).then((results) => {
-                                console.log('[Allegro Extension] Script results:', results);
-
-                                if (results && results[0] && results[0].result) {
-                                    const result = results[0].result;
-                                    console.log('[Allegro Extension] Extraction result:', result);
-
-                                    // Check if we need to navigate to offers page
-                                    if (result.needsNavigation) {
-                                        console.log('[Allegro Extension] Navigating to offers page:', result.url);
-
-                                        // Navigate to offers page
-                                        chrome.tabs.update(tab.id, { url: result.url }, () => {
-                                            // Wait for offers page to load
-                                            chrome.tabs.onUpdated.addListener(function offersListener(tabId, info) {
-                                                if (tabId === tab.id && info.status === 'complete') {
-                                                    chrome.tabs.onUpdated.removeListener(offersListener);
-
-                                                    setTimeout(() => {
-                                                        // Extract price from offers page
-                                                        chrome.scripting.executeScript({
-                                                            target: { tabId: tab.id },
-                                                            func: extractPriceFromOffers
-                                                        }).then((offersResults) => {
-                                                            if (offersResults && offersResults[0] && offersResults[0].result) {
-                                                                const price = offersResults[0].result;
-                                                                console.log('[Allegro Extension] Price from offers:', price);
-                                                                handlePriceExtracted(tab.id, sender.tab.id, gtin, price, shouldClickAgain);
-                                                            } else {
-                                                                console.warn('[Allegro Extension] No price found on offers page');
-                                                                chrome.tabs.remove(tab.id);
-                                                                processingUrls.delete(url);
-                                                            }
-                                                        }).catch(err => {
-                                                            console.error('[Allegro Extension] Offers extraction error:', err);
-                                                            chrome.tabs.remove(tab.id);
-                                                            processingUrls.delete(url);
-                                                        });
-                                                    }, 2000);
-                                                }
-                                            });
-                                        });
-                                    } else if (result.price) {
-                                        // Use direct price
-                                        console.log('[Allegro Extension] Using direct price:', result.price);
-                                        handlePriceExtracted(tab.id, sender.tab.id, gtin, result.price, shouldClickAgain);
-                                    } else {
-                                        console.warn('[Allegro Extension] No price found');
-                                        chrome.tabs.remove(tab.id);
-                                        processingUrls.delete(url);
-                                    }
+                            // Extract price with optional navigation to offers
+                            extractPriceWithNavigation(tab.id, (result) => {
+                                if (result.success) {
+                                    handlePriceExtracted(tab.id, sender.tab.id, gtin, result.price, shouldClickAgain);
                                 } else {
-                                    console.warn('[Allegro Extension] No result from extraction');
+                                    console.warn('[Allegro Extension] Failed to extract price:', result.error);
                                     chrome.tabs.remove(tab.id);
-                                    processingUrls.delete(url);
                                 }
-                            }).catch(err => {
-                                console.error('[Allegro Extension] Script execution error:', err);
-                                chrome.tabs.remove(tab.id);
+
+                                // Clean up
                                 processingUrls.delete(url);
                             });
                         }, 2000); // Wait 2 seconds for dynamic content
