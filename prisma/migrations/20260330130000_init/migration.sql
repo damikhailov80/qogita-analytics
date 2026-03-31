@@ -128,6 +128,7 @@ WITH base AS (
   SELECT 
     o.seller_code,
     o.gtin,
+    p.brand,
     o.price AS buy_price,
     -- Use manual_price from changes if available, otherwise use original price
     COALESCE(pac.manual_price, pa.price) AS sell_price,
@@ -138,10 +139,10 @@ WITH base AS (
     END AS profit_ratio,
     o.inventory,
     s.min_order_value,
-    -- Calculate total_cost limited by constant 1000
+    -- Calculate total_cost limited by constant 300
     CASE 
       WHEN (o.price * o.inventory) > 300 
-      THEN 1000
+      THEN 300
       ELSE (o.price * o.inventory)
     END AS total_cost,
     -- Calculate total_profit based on limited total_cost
@@ -151,6 +152,7 @@ WITH base AS (
       ELSE (COALESCE(pac.manual_price, pa.price) - o.price) * o.inventory
     END AS total_profit
   FROM offers o
+  JOIN products p ON p.gtin = o.gtin
   JOIN products_allegro pa ON pa.gtin = o.gtin
   LEFT JOIN products_allegro_changes pac ON pac.gtin = o.gtin
   JOIN sellers s ON s.code = o.seller_code
@@ -182,6 +184,7 @@ accumulated AS (
 SELECT 
   a.seller_code,
   a.gtin,
+  a.brand,
   a.buy_price,
   a.sell_price,
   a.unit_profit,

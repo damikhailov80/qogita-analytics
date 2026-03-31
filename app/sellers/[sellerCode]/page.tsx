@@ -8,6 +8,7 @@ type OrderCandidate = {
     rn: number;
     seller_code: string;
     gtin: string;
+    brand: string | null;
     buy_price: number;
     sell_price: number;
     unit_profit: number;
@@ -43,6 +44,33 @@ export default function SellerDetailPage() {
         manualPrice: string;
     }>({ manualPrice: '' });
     const [plnToEurRate, setPlnToEurRate] = useState<number>(4.5);
+    const [brandFilter, setBrandFilter] = useState<string>('');
+    const [mounted, setMounted] = useState(false);
+
+    // Инициализация из URL
+    useEffect(() => {
+        setMounted(true);
+        const searchParams = new URLSearchParams(window.location.search);
+        const brandParam = searchParams.get('brand');
+        if (brandParam) {
+            setBrandFilter(brandParam);
+        }
+    }, []);
+
+    // Обновление URL при изменении фильтра
+    useEffect(() => {
+        if (!mounted) return;
+
+        const searchParams = new URLSearchParams(window.location.search);
+        if (brandFilter) {
+            searchParams.set('brand', brandFilter);
+        } else {
+            searchParams.delete('brand');
+        }
+
+        const newUrl = `${window.location.pathname}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+        window.history.replaceState({}, '', newUrl);
+    }, [brandFilter, mounted]);
 
     useEffect(() => {
         const fetchOrders = async () => {
@@ -156,6 +184,11 @@ export default function SellerDetailPage() {
         }
     };
 
+    const filteredOrders = orders.filter((order) => {
+        if (!brandFilter) return true;
+        return order.brand?.toLowerCase().includes(brandFilter.toLowerCase());
+    });
+
     return (
         <div className="w-full py-10 px-4">
             <div className="flex justify-between items-center mb-6">
@@ -172,6 +205,24 @@ export default function SellerDetailPage() {
                         Кандидаты на заказ, отсортированные по рангу
                     </p>
                 </div>
+                <div className="flex gap-2 items-center">
+                    <input
+                        type="text"
+                        placeholder="Фильтр по бренду..."
+                        value={brandFilter}
+                        onChange={(e) => setBrandFilter(e.target.value)}
+                        className="px-3 py-2 border rounded-md text-sm w-64"
+                    />
+                    {brandFilter && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setBrandFilter('')}
+                        >
+                            Очистить
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <div className="rounded-md border w-full overflow-hidden">
@@ -187,6 +238,9 @@ export default function SellerDetailPage() {
                                 </th>
                                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b">
                                     GTIN
+                                </th>
+                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b">
+                                    Brand
                                 </th>
                                 <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground border-b">
                                     Links
@@ -235,12 +289,12 @@ export default function SellerDetailPage() {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={16} className="h-24 text-center">
+                                    <td colSpan={18} className="h-24 text-center">
                                         Loading...
                                     </td>
                                 </tr>
-                            ) : orders.length > 0 ? (
-                                orders.map((order) => {
+                            ) : filteredOrders.length > 0 ? (
+                                filteredOrders.map((order) => {
                                     const isEditing = editingGtin === order.gtin;
                                     return (
                                         <tr
@@ -261,6 +315,9 @@ export default function SellerDetailPage() {
                                             </td>
                                             <td className="p-4 align-middle">
                                                 <div className="font-mono text-sm">{order.gtin}</div>
+                                            </td>
+                                            <td className="p-4 align-middle">
+                                                <div className="text-sm">{order.brand || '-'}</div>
                                             </td>
                                             <td className="p-4 align-middle">
                                                 <div className="flex gap-2 justify-center">
@@ -406,7 +463,7 @@ export default function SellerDetailPage() {
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan={16} className="h-24 text-center">
+                                    <td colSpan={18} className="h-24 text-center">
                                         No orders found.
                                     </td>
                                 </tr>
@@ -418,7 +475,13 @@ export default function SellerDetailPage() {
 
             {!loading && orders.length > 0 && (
                 <div className="mt-4 text-sm text-gray-600">
-                    Total orders: {orders.length}
+                    {brandFilter ? (
+                        <>
+                            Показано: {filteredOrders.length} из {orders.length} товаров
+                        </>
+                    ) : (
+                        <>Total orders: {orders.length}</>
+                    )}
                 </div>
             )}
         </div>

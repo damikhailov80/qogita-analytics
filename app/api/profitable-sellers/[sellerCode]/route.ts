@@ -14,6 +14,7 @@ export async function GET(
                 rn: bigint;
                 seller_code: string;
                 gtin: string;
+                brand: string | null;
                 buy_price: number;
                 sell_price: number;
                 unit_profit: number;
@@ -36,6 +37,7 @@ export async function GET(
                 oc.rn,
                 oc.seller_code,
                 oc.gtin,
+                oc.brand,
                 oc.buy_price,
                 oc.sell_price,
                 oc.unit_profit,
@@ -64,6 +66,7 @@ export async function GET(
             rn: Number(order.rn),
             seller_code: order.seller_code,
             gtin: order.gtin,
+            brand: order.brand,
             buy_price: order.buy_price,
             sell_price: order.sell_price,
             unit_profit: order.unit_profit,
