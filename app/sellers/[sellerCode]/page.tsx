@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, ExternalHyperlink } from 'docx';
 
 type OrderCandidate = {
     rn: number;
@@ -46,6 +47,7 @@ export default function SellerDetailPage() {
     const [plnToEurRate, setPlnToEurRate] = useState<number>(4.5);
     const [brandFilter, setBrandFilter] = useState<string>('');
     const [mounted, setMounted] = useState(false);
+    const [selectedGtins, setSelectedGtins] = useState<Set<string>>(new Set());
 
     // Инициализация из URL
     useEffect(() => {
@@ -189,6 +191,140 @@ export default function SellerDetailPage() {
         return order.brand?.toLowerCase().includes(brandFilter.toLowerCase());
     });
 
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedGtins(new Set(filteredOrders.map(order => order.gtin)));
+        } else {
+            setSelectedGtins(new Set());
+        }
+    };
+
+    const handleSelectRow = (gtin: string, checked: boolean) => {
+        const newSelected = new Set(selectedGtins);
+        if (checked) {
+            newSelected.add(gtin);
+        } else {
+            newSelected.delete(gtin);
+        }
+        setSelectedGtins(newSelected);
+    };
+
+    const handleExportCSV = async () => {
+        const selectedOrders = filteredOrders.filter(order => selectedGtins.has(order.gtin));
+
+        if (selectedOrders.length === 0) {
+            alert('Выберите хотя бы одну строку для экспорта');
+            return;
+        }
+
+        // Группируем по брендам
+        const ordersByBrand = selectedOrders.reduce((acc, order) => {
+            const brand = order.brand || 'Без бренда';
+            if (!acc[brand]) {
+                acc[brand] = [];
+            }
+            acc[brand].push(order);
+            return acc;
+        }, {} as Record<string, OrderCandidate[]>);
+
+        // Создаем параграфы для документа
+        const paragraphs: Paragraph[] = [];
+
+        // Заголовок 1 - Seller
+        paragraphs.push(
+            new Paragraph({
+                text: `Seller: ${sellerCode}`,
+                heading: HeadingLevel.HEADING_1,
+                spacing: { after: 200 }
+            })
+        );
+
+        // Для каждого бренда
+        const brands = Object.keys(ordersByBrand).sort();
+        for (const brand of brands) {
+            // Заголовок 2 - Бренд
+            paragraphs.push(
+                new Paragraph({
+                    text: brand,
+                    heading: HeadingLevel.HEADING_2,
+                    spacing: { before: 200, after: 100 }
+                })
+            );
+
+            // Список товаров с ссылками
+            const brandOrders = ordersByBrand[brand];
+            for (const order of brandOrders) {
+                const qogitaUrl = order.product_url || '';
+                const allegroUrl = `https://business.allegro.pl/listing?string=${order.gtin}`;
+
+                paragraphs.push(
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: `${order.gtin}: `,
+                                bold: true
+                            }),
+                            new ExternalHyperlink({
+                                children: [
+                                    new TextRun({
+                                        text: 'Qogita',
+                                        style: 'Hyperlink',
+                                        color: '0563C1',
+                                        underline: {}
+                                    })
+                                ],
+                                link: qogitaUrl || allegroUrl
+                            }),
+                            new TextRun({
+                                text: ', '
+                            }),
+                            new ExternalHyperlink({
+                                children: [
+                                    new TextRun({
+                                        text: 'Allegro',
+                                        style: 'Hyperlink',
+                                        color: 'FF5A00',
+                                        underline: {}
+                                    })
+                                ],
+                                link: allegroUrl
+                            })
+                        ],
+                        spacing: { after: 100 }
+                    })
+                );
+            }
+        }
+
+        // Создаем документ
+        const doc = new Document({
+            sections: [{
+                properties: {},
+                children: paragraphs
+            }]
+        });
+
+        // Генерируем blob и открываем в новой вкладке
+        const blob = await Packer.toBlob(doc);
+        const url = URL.createObjectURL(blob);
+
+        // Создаем временную ссылку для скачивания
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `seller_${sellerCode}_export_${new Date().toISOString().split('T')[0]}.docx`;
+        link.click();
+
+        // Также открываем в новой вкладке через Google Docs Viewer
+        const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(window.location.origin + url)}`;
+        window.open(url, '_blank');
+
+        // Очищаем URL после небольшой задержки
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+    };
+
+    const allSelected = filteredOrders.length > 0 && filteredOrders.every(order => selectedGtins.has(order.gtin));
+    const someSelected = filteredOrders.some(order => selectedGtins.has(order.gtin));
+
     return (
         <div className="w-full py-10 px-4">
             <div className="flex justify-between items-center mb-6">
@@ -222,6 +358,14 @@ export default function SellerDetailPage() {
                             Очистить
                         </Button>
                     )}
+                    {selectedGtins.size > 0 && (
+                        <Button
+                            onClick={handleExportCSV}
+                            className="ml-2"
+                        >
+                            Экспорт в DOCX ({selectedGtins.size})
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -230,6 +374,19 @@ export default function SellerDetailPage() {
                     <table className="w-full border-collapse text-sm">
                         <thead className="bg-muted/50">
                             <tr>
+                                <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground border-b">
+                                    <input
+                                        type="checkbox"
+                                        checked={allSelected}
+                                        ref={(input) => {
+                                            if (input) {
+                                                input.indeterminate = someSelected && !allSelected;
+                                            }
+                                        }}
+                                        onChange={(e) => handleSelectAll(e.target.checked)}
+                                        className="w-4 h-4 cursor-pointer"
+                                    />
+                                </th>
                                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b">
                                     RN
                                 </th>
@@ -289,13 +446,14 @@ export default function SellerDetailPage() {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={18} className="h-24 text-center">
+                                    <td colSpan={19} className="h-24 text-center">
                                         Loading...
                                     </td>
                                 </tr>
                             ) : filteredOrders.length > 0 ? (
                                 filteredOrders.map((order) => {
                                     const isEditing = editingGtin === order.gtin;
+                                    const isSelected = selectedGtins.has(order.gtin);
                                     return (
                                         <tr
                                             key={order.rn}
@@ -303,6 +461,14 @@ export default function SellerDetailPage() {
                                             data-price-manual={order.manual_price ? "true" : undefined}
                                             data-roi-suspicious={order.profit_ratio > 30 ? "true" : undefined}
                                         >
+                                            <td className="p-4 align-middle text-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={(e) => handleSelectRow(order.gtin, e.target.checked)}
+                                                    className="w-4 h-4 cursor-pointer"
+                                                />
+                                            </td>
                                             <td className="p-4 align-middle">
                                                 <div className="text-gray-500">{order.rn}</div>
                                             </td>
@@ -463,7 +629,7 @@ export default function SellerDetailPage() {
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan={18} className="h-24 text-center">
+                                    <td colSpan={19} className="h-24 text-center">
                                         No orders found.
                                     </td>
                                 </tr>
