@@ -40,27 +40,45 @@ export const offersUpdateAllWorker = new Worker<OffersUpdateAllJobData>(
                 console.log(`[Offers UpdateAll Worker] ${startMsg}`);
                 await logger.log(startMsg);
 
-                // Шаг 1: Получаем GTIN из products_allegro с устаревшими offers (старше 24 часов)
+                // Шаг 1: Получаем GTIN из products_allegro с устаревшими offers (старше 24 часов) или без offers
                 await logger.updateProgress(10);
-                await logger.log('Fetching GTINs with outdated offers (older than 24 hours)...');
+                await logger.log('Fetching GTINs with outdated or missing offers...');
 
                 const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-                // Получаем GTIN с устаревшими offers
-                const outdatedOffers = await prisma.offer.findMany({
-                    where: {
-                        updatedAt: { lt: oneDayAgo }
-                    },
-                    select: { gtin: true },
-                    distinct: ['gtin']
+                // Получаем все продукты из products_allegro
+                const allAllegroProducts = await prisma.productAllegro.findMany({
+                    select: { gtin: true }
                 });
 
-                const gtins = outdatedOffers.map(o => o.gtin);
-                await logger.log(`Found ${gtins.length} GTINs with outdated offers`);
+                const allGtins = allAllegroProducts.map(p => p.gtin);
+
+                // Получаем GTIN с актуальными offers (обновленными за последние 24 часа)
+                // Разбиваем на батчи по 500 элементов, чтобы избежать переполнения стека
+                const batchSize = 500;
+                const recentOffersSet = new Set<string>();
+
+                for (let i = 0; i < allGtins.length; i += batchSize) {
+                    const batch = allGtins.slice(i, i + batchSize);
+                    const batchOffers = await prisma.offer.findMany({
+                        where: {
+                            gtin: { in: batch },
+                            updatedAt: { gte: oneDayAgo }
+                        },
+                        select: { gtin: true },
+                        distinct: ['gtin']
+                    });
+                    batchOffers.forEach(o => recentOffersSet.add(o.gtin));
+                }
+
+                // Фильтруем: оставляем только те GTIN, у которых нет актуальных offers
+                const gtins = allGtins.filter(gtin => !recentOffersSet.has(gtin));
+
+                await logger.log(`Found ${gtins.length} GTINs with outdated or missing offers (${allGtins.length} total products)`);
 
                 if (gtins.length === 0) {
                     await logger.updateProgress(100);
-                    await logger.log('No outdated offers found');
+                    await logger.log('No outdated or missing offers found - all products are up to date');
                     return {
                         success: true,
                         count: 0,
@@ -87,17 +105,24 @@ export const offersUpdateAllWorker = new Worker<OffersUpdateAllJobData>(
                     await logger.log(resumeMsg);
                     deleteResult = { count: 0 }; // Уже удалили ранее
                 } else {
-                    // Новый запуск - удаляем только устаревшие offers
+                    // Новый запуск - удаляем только устаревшие offers для найденных GTIN
                     await logger.updateProgress(15);
                     await logger.log('Deleting outdated offers...');
 
-                    deleteResult = await prisma.offer.deleteMany({
-                        where: {
-                            gtin: { in: gtins },
-                            updatedAt: { lt: oneDayAgo }
-                        }
-                    });
+                    // Удаляем батчами по 500 элементов
+                    let totalDeleted = 0;
+                    for (let i = 0; i < gtins.length; i += batchSize) {
+                        const batch = gtins.slice(i, i + batchSize);
+                        const result = await prisma.offer.deleteMany({
+                            where: {
+                                gtin: { in: batch },
+                                updatedAt: { lt: oneDayAgo }
+                            }
+                        });
+                        totalDeleted += result.count;
+                    }
 
+                    deleteResult = { count: totalDeleted };
                     await logger.log(`Deleted ${deleteResult.count} outdated offers`);
 
                     await logger.log('Clearing offers worker logs and states...');
@@ -125,21 +150,27 @@ export const offersUpdateAllWorker = new Worker<OffersUpdateAllJobData>(
                 await logger.updateProgress(20);
                 await logger.log('Fetching products with productUrl...');
 
-                const allProducts = await prisma.product.findMany({
-                    where: {
-                        gtin: { in: gtins },
-                        productUrl: { not: null }
-                    },
-                    select: {
-                        gtin: true,
-                        productUrl: true
-                    }
-                }) as ProductWithUrl[];
+                // Получаем продукты батчами по 500 элементов
+                const allProductsArray: ProductWithUrl[] = [];
+                for (let i = 0; i < gtins.length; i += batchSize) {
+                    const batch = gtins.slice(i, i + batchSize);
+                    const batchProducts = await prisma.product.findMany({
+                        where: {
+                            gtin: { in: batch },
+                            productUrl: { not: null }
+                        },
+                        select: {
+                            gtin: true,
+                            productUrl: true
+                        }
+                    }) as ProductWithUrl[];
+                    allProductsArray.push(...batchProducts);
+                }
 
                 // Фильтруем уже обработанные продукты
-                const products = allProducts.filter(p => !state.processedGtins.includes(p.gtin));
+                const products = allProductsArray.filter(p => !state.processedGtins.includes(p.gtin));
 
-                await logger.log(`Found ${allProducts.length} products with productUrl, ${products.length} remaining to process`);
+                await logger.log(`Found ${allProductsArray.length} products with productUrl, ${products.length} remaining to process`);
 
                 // Шаг 4: Аутентификация с Qogita API
                 await logger.updateProgress(25);
@@ -158,7 +189,7 @@ export const offersUpdateAllWorker = new Worker<OffersUpdateAllJobData>(
                 await logger.updateProgress(30);
                 await logger.log(`Processing ${products.length} products...`);
 
-                const totalProducts = allProducts.length;
+                const totalProducts = allProductsArray.length;
                 let processed = state.processedGtins.length;
 
                 for (const product of products) {
