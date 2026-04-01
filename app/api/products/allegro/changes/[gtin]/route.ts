@@ -28,12 +28,6 @@ export async function GET(
                         brand: true,
                         category: true,
                     }
-                },
-                allegroProduct: {
-                    select: {
-                        price: true,
-                        salesQuantity: true,
-                    }
                 }
             }
         });
@@ -82,7 +76,6 @@ export async function PATCH(
             data: updateData,
             include: {
                 product: true,
-                allegroProduct: true,
             }
         });
 
@@ -143,7 +136,6 @@ export async function PUT(
             },
             include: {
                 product: true,
-                allegroProduct: true,
             }
         });
 
