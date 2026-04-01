@@ -24,6 +24,7 @@ export async function GET(
                 brand: string | null;
                 buy_price: number;
                 sell_price: number;
+                allegro_price: number | null;
                 unit_profit: number;
                 profit_ratio: number;
                 inventory: number;
@@ -45,6 +46,7 @@ export async function GET(
                 oc.brand,
                 oc.buy_price,
                 oc.sell_price,
+                pa.price as allegro_price,
                 oc.unit_profit,
                 oc.profit_ratio,
                 oc.inventory,
@@ -76,6 +78,7 @@ export async function GET(
             brand: order.brand,
             buy_price: order.buy_price,
             sell_price: order.sell_price,
+            allegro_price: order.allegro_price,
             unit_profit: order.unit_profit,
             profit_ratio: order.profit_ratio,
             inventory: order.inventory,

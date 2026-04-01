@@ -12,6 +12,7 @@ type OrderCandidate = {
     brand: string | null;
     buy_price: number;
     sell_price: number;
+    allegro_price: number | null;
     unit_profit: number;
     profit_ratio: number;
     inventory: number;
@@ -375,6 +376,7 @@ export default function SellerDetailPage() {
             'Brand',
             'Buy Price (€)',
             'Sell Price (€)',
+            'Allegro Price (€)',
             'Manual Price (€)',
             'Unit Profit (€)',
             'Profit Ratio (%)',
@@ -398,6 +400,7 @@ export default function SellerDetailPage() {
             order.brand || '',
             Number(order.buy_price).toFixed(2),
             Number(order.sell_price).toFixed(2),
+            order.allegro_price ? Number(order.allegro_price).toFixed(2) : '',
             order.manual_price ? Number(order.manual_price).toFixed(2) : '',
             Number(order.unit_profit).toFixed(2),
             Number(order.profit_ratio).toFixed(2),
@@ -692,7 +695,7 @@ export default function SellerDetailPage() {
                                                     href={`/products/allegro?gtin=${order.gtin}`}
                                                     className="text-blue-600 hover:underline whitespace-nowrap"
                                                 >
-                                                    {Number(order.sell_price).toFixed(2)}
+                                                    {order.allegro_price ? Number(order.allegro_price).toFixed(2) : '-'}
                                                 </a>
                                             </td>
                                             <td className="p-2 align-middle text-right">
