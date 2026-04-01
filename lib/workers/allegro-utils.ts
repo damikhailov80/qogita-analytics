@@ -51,9 +51,10 @@ export function parseAllegroRow(row: Record<string, string>): AllegroProduct | n
     }
     const salesQuantity = parseInt(trafficMatch[0]);
 
-    // Пропускаем товары с sales_quantity ниже порога
+    // Пропускаем товары вне диапазона traffic
     const minTraffic = parseInt(process.env.ALLEGRO_MIN_TRAFFIC || '100');
-    if (salesQuantity < minTraffic) {
+    const maxTraffic = parseInt(process.env.ALLEGRO_MAX_TRAFFIC || '99999');
+    if (salesQuantity < minTraffic || salesQuantity > maxTraffic) {
         return null;
     }
 
