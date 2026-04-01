@@ -36,24 +36,31 @@ export const offersUpdateAllWorker = new Worker<OffersUpdateAllJobData>(
             async (job, logger, stateManager) => {
 
                 await logger.updateProgress(5);
-                const startMsg = 'Starting offers update for all products from products_allegro';
+                const startMsg = 'Starting offers update for products with outdated offers (older than 24 hours)';
                 console.log(`[Offers UpdateAll Worker] ${startMsg}`);
                 await logger.log(startMsg);
 
-                // Шаг 1: Получаем все GTIN из products_allegro
+                // Шаг 1: Получаем GTIN из products_allegro с устаревшими offers (старше 24 часов)
                 await logger.updateProgress(10);
-                await logger.log('Fetching GTINs from products_allegro...');
+                await logger.log('Fetching GTINs with outdated offers (older than 24 hours)...');
 
-                const allegroProducts = await prisma.productAllegro.findMany({
-                    select: { gtin: true }
+                const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+                // Получаем GTIN с устаревшими offers
+                const outdatedOffers = await prisma.offer.findMany({
+                    where: {
+                        updatedAt: { lt: oneDayAgo }
+                    },
+                    select: { gtin: true },
+                    distinct: ['gtin']
                 });
 
-                const gtins = allegroProducts.map(p => p.gtin);
-                await logger.log(`Found ${gtins.length} GTINs in products_allegro`);
+                const gtins = outdatedOffers.map(o => o.gtin);
+                await logger.log(`Found ${gtins.length} GTINs with outdated offers`);
 
                 if (gtins.length === 0) {
                     await logger.updateProgress(100);
-                    await logger.log('No products found in products_allegro');
+                    await logger.log('No outdated offers found');
                     return {
                         success: true,
                         count: 0,
@@ -80,17 +87,18 @@ export const offersUpdateAllWorker = new Worker<OffersUpdateAllJobData>(
                     await logger.log(resumeMsg);
                     deleteResult = { count: 0 }; // Уже удалили ранее
                 } else {
-                    // Новый запуск - удаляем все существующие offers
+                    // Новый запуск - удаляем только устаревшие offers
                     await logger.updateProgress(15);
-                    await logger.log('Deleting existing offers for these GTINs...');
+                    await logger.log('Deleting outdated offers...');
 
                     deleteResult = await prisma.offer.deleteMany({
                         where: {
-                            gtin: { in: gtins }
+                            gtin: { in: gtins },
+                            updatedAt: { lt: oneDayAgo }
                         }
                     });
 
-                    await logger.log(`Deleted ${deleteResult.count} existing offers`);
+                    await logger.log(`Deleted ${deleteResult.count} outdated offers`);
 
                     await logger.log('Clearing offers worker logs and states...');
                     await prisma.workerLog.deleteMany({
@@ -113,7 +121,7 @@ export const offersUpdateAllWorker = new Worker<OffersUpdateAllJobData>(
                     };
                 }
 
-                // Шаг 3: Получаем продукты с productUrl
+                // Шаг 3: Получаем продукты с productUrl для устаревших GTIN
                 await logger.updateProgress(20);
                 await logger.log('Fetching products with productUrl...');
 
