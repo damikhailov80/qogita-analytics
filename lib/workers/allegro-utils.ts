@@ -10,6 +10,26 @@ export interface AllegroProduct {
 }
 
 /**
+ * Причины отклонения строки
+ */
+export type RejectionReason =
+    | 'missing_fields'
+    | 'invalid_traffic'
+    | 'invalid_sellers_count'
+    | 'sellers_out_of_range'
+    | 'traffic_out_of_range'
+    | 'invalid_price'
+    | 'price_out_of_range';
+
+/**
+ * Результат парсинга строки
+ */
+export interface ParseResult {
+    product: AllegroProduct | null;
+    rejectionReason?: RejectionReason;
+}
+
+/**
  * Результат обработки батча продуктов
  */
 export interface BatchProcessResult {
@@ -36,13 +56,15 @@ function normalizeGtin(gtin: string): string {
  * Фильтрует товары с ценой вне диапазона ALLEGRO_MIN_PRICE - ALLEGRO_MAX_PRICE (в EUR)
  * Фильтрует товары с количеством продавцов вне диапазона ALLEGRO_MIN_SELLERS - ALLEGRO_MAX_SELLERS
  */
-export function parseAllegroRow(row: Record<string, string>): AllegroProduct | null {
+export function parseAllegroRow(row: Record<string, string>): ParseResult {
     const gtinRaw = row['GTIN'] || row['gtin'] || '';
     const traffic = row['traffic'] || '';
     const priceNetto = row['price_netto'] || '';
     const offersCount = row['OFFERS_COUNT'] || row['offers_count'] || row['OD|FEERS_COUNT'] || '';
 
-    if (!gtinRaw || !traffic || !priceNetto || !offersCount) return null;
+    if (!gtinRaw || !traffic || !priceNetto) {
+        return { product: null, rejectionReason: 'missing_fields' };
+    }
 
     // Нормализуем GTIN
     const gtin = normalizeGtin(gtinRaw);
@@ -50,20 +72,22 @@ export function parseAllegroRow(row: Record<string, string>): AllegroProduct | n
     // Извлекаем число из traffic (например "2 osoby" -> 2)
     const trafficMatch = traffic.match(/^\d+/);
     if (!trafficMatch) {
-        return null;
+        return { product: null, rejectionReason: 'invalid_traffic' };
     }
     const salesQuantity = parseInt(trafficMatch[0]);
 
     // Извлекаем количество продавцов (если есть)
     if (offersCount) {
         const sellersCount = parseInt(offersCount);
-        if (!isNaN(sellersCount)) {
-            // Пропускаем товары вне диапазона количества продавцов
-            const minSellers = parseInt(process.env.ALLEGRO_MIN_SELLERS || '2');
-            const maxSellers = parseInt(process.env.ALLEGRO_MAX_SELLERS || '999');
-            if (sellersCount < minSellers || sellersCount > maxSellers) {
-                return null;
-            }
+        if (isNaN(sellersCount)) {
+            return { product: null, rejectionReason: 'invalid_sellers_count' };
+        }
+
+        // Пропускаем товары вне диапазона количества продавцов
+        const minSellers = parseInt(process.env.ALLEGRO_MIN_SELLERS || '2');
+        const maxSellers = parseInt(process.env.ALLEGRO_MAX_SELLERS || '999');
+        if (sellersCount < minSellers || sellersCount > maxSellers) {
+            return { product: null, rejectionReason: 'sellers_out_of_range' };
         }
     }
 
@@ -71,33 +95,39 @@ export function parseAllegroRow(row: Record<string, string>): AllegroProduct | n
     const minTraffic = parseInt(process.env.ALLEGRO_MIN_TRAFFIC || '100');
     const maxTraffic = parseInt(process.env.ALLEGRO_MAX_TRAFFIC || '99999');
     if (salesQuantity < minTraffic || salesQuantity > maxTraffic) {
-        return null;
+        return { product: null, rejectionReason: 'traffic_out_of_range' };
     }
 
     // Извлекаем число из price_netto (например "80,49 zł" -> 80.49)
     const priceMatch = priceNetto.match(/[\d,]+/);
-    if (!priceMatch) return null;
+    if (!priceMatch) {
+        return { product: null, rejectionReason: 'invalid_price' };
+    }
 
     // Заменяем запятую на точку для парсинга
     const pricePLN = parseFloat(priceMatch[0].replace(',', '.'));
 
-    if (isNaN(salesQuantity) || isNaN(pricePLN)) return null;
+    if (isNaN(salesQuantity) || isNaN(pricePLN)) {
+        return { product: null, rejectionReason: 'invalid_price' };
+    }
 
     // Конвертируем цену из PLN в EUR
-    const exchangeRate = parseFloat(process.env.PLN_TO_EUR_RATE || '4.5');
+    const exchangeRate = parseFloat(process.env.PLN_TO_EUR_RATE || '5');
     const priceEUR = pricePLN / exchangeRate;
 
     // Пропускаем товары вне диапазона цены
     const minPrice = parseFloat(process.env.ALLEGRO_MIN_PRICE || '0');
     const maxPrice = parseFloat(process.env.ALLEGRO_MAX_PRICE || '99999');
     if (priceEUR < minPrice || priceEUR > maxPrice) {
-        return null;
+        return { product: null, rejectionReason: 'price_out_of_range' };
     }
 
     return {
-        gtin,
-        salesQuantity,
-        price: priceEUR
+        product: {
+            gtin,
+            salesQuantity,
+            price: priceEUR
+        }
     };
 }
 

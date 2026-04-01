@@ -24,6 +24,7 @@ interface WorkerState {
     totalSkipped: number;
     totalIgnored: number;
     skippedGtins: string[];
+    rejectionStats: Record<string, number>;
 }
 
 export const allegroUploadWorker = new Worker<AllegroUploadJobData>(
@@ -64,7 +65,8 @@ export const allegroUploadWorker = new Worker<AllegroUploadJobData>(
                     totalProcessed: parsed.totalProcessed,
                     totalSkipped: parsed.totalSkipped,
                     totalIgnored: parsed.totalIgnored,
-                    skippedGtins: parsed.skippedGtins || []
+                    skippedGtins: parsed.skippedGtins || [],
+                    rejectionStats: parsed.rejectionStats || {}
                 };
                 isResume = true;
                 await logger.log(`🔄 Resuming from saved state: ${state.totalProcessed} products already processed`);
@@ -74,7 +76,8 @@ export const allegroUploadWorker = new Worker<AllegroUploadJobData>(
                     totalProcessed: 0,
                     totalSkipped: 0,
                     totalIgnored: 0,
-                    skippedGtins: []
+                    skippedGtins: [],
+                    rejectionStats: {}
                 };
             }
 
@@ -180,11 +183,17 @@ export const allegroUploadWorker = new Worker<AllegroUploadJobData>(
                                     }
                                 }
 
-                                const product = parseAllegroRow(row);
-                                if (!product) {
+                                const parseResult = parseAllegroRow(row);
+                                if (!parseResult.product) {
                                     state.totalIgnored++;
+                                    if (parseResult.rejectionReason) {
+                                        state.rejectionStats[parseResult.rejectionReason] =
+                                            (state.rejectionStats[parseResult.rejectionReason] || 0) + 1;
+                                    }
                                     continue;
                                 }
+
+                                const product = parseResult.product;
 
                                 // Пропускаем уже обработанные продукты
                                 if (state.processedGtins.has(product.gtin)) {
@@ -225,18 +234,41 @@ export const allegroUploadWorker = new Worker<AllegroUploadJobData>(
 
                             await logger.updateProgress(100);
 
-                            if (state.totalSkipped > 0) {
-                                await logger.log(`⚠️ Successfully processed ${state.totalProcessed} products from ${totalRows} rows`);
-                                await logger.log(`⚠️ Skipped ${state.totalSkipped} products - GTIN not found in Qogita products database`);
-                                await logger.log(`Ignored ${state.totalIgnored} invalid rows`);
+                            // Формируем читаемые названия для причин отклонения
+                            const reasonLabels: Record<string, string> = {
+                                'missing_fields': 'Missing required fields (GTIN, traffic, or price)',
+                                'invalid_traffic': 'Invalid traffic format',
+                                'invalid_sellers_count': 'Invalid sellers count format',
+                                'sellers_out_of_range': `Sellers count out of range (${process.env.ALLEGRO_MIN_SELLERS || '2'}-${process.env.ALLEGRO_MAX_SELLERS || '500'})`,
+                                'traffic_out_of_range': `Traffic out of range (${process.env.ALLEGRO_MIN_TRAFFIC || '50'}-${process.env.ALLEGRO_MAX_TRAFFIC || '99999'})`,
+                                'invalid_price': 'Invalid price format',
+                                'price_out_of_range': `Price out of range (€${process.env.ALLEGRO_MIN_PRICE || '0'}-€${process.env.ALLEGRO_MAX_PRICE || '500'})`
+                            };
 
+                            await logger.log(`\n📊 Processing Summary:`);
+                            await logger.log(`✅ Successfully processed: ${state.totalProcessed} products`);
+                            await logger.log(`📋 Total rows in file: ${totalRows}`);
+
+                            if (state.totalSkipped > 0) {
+                                await logger.log(`⚠️ Skipped (GTIN not in Qogita DB): ${state.totalSkipped} products`);
+                            }
+
+                            if (state.totalIgnored > 0) {
+                                await logger.log(`\n❌ Ignored rows: ${state.totalIgnored}`);
+                                await logger.log(`Breakdown by rejection reason:`);
+
+                                for (const [reason, count] of Object.entries(state.rejectionStats)) {
+                                    const label = reasonLabels[reason] || reason;
+                                    await logger.log(`  • ${label}: ${count}`);
+                                }
+                            }
+
+                            if (state.totalSkipped > 0) {
                                 // Выводим список пропущенных GTIN только в терминал
-                                console.log(`[Allegro Upload Worker] --- Skipped GTINs (${state.skippedGtins.length}) ---`);
+                                console.log(`\n[Allegro Upload Worker] --- Skipped GTINs (${state.skippedGtins.length}) ---`);
                                 for (const gtin of state.skippedGtins) {
                                     console.log(`[Allegro Upload Worker]   ${gtin}`);
                                 }
-                            } else {
-                                await logger.log(`✅ Successfully processed ${state.totalProcessed} products from ${totalRows} rows (${state.totalIgnored} ignored)`);
                             }
 
                             // Резолвим Promise только после всех логов
