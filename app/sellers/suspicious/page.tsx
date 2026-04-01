@@ -248,7 +248,7 @@ export default function SuspiciousSellersPage() {
                                             key={`${product.seller_code}-${product.gtin}`}
                                             className="border-b transition-colors hover:bg-muted/50"
                                             data-price-manual={product.manual_price ? "true" : undefined}
-                                            data-roi-suspicious={product.profit_ratio > 30 ? "true" : undefined}
+                                            data-roi={product.profit_ratio != null ? Number(product.profit_ratio).toFixed(2) : undefined}
                                         >
                                             <td className="p-4 align-middle">
                                                 <div className="text-gray-500">{index + 1}</div>

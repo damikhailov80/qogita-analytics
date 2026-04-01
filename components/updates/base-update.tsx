@@ -118,10 +118,13 @@ export default function BaseUpdate({
         initializeStatus();
     }, [updateEndpoint, logEndpoint]);
 
-    // Автоскролл к последнему логу
+    // Автоскролл к последнему логу (только внутри контейнера)
     useEffect(() => {
         if (logsEndRef.current) {
-            logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+            const logsContainer = logsEndRef.current.parentElement;
+            if (logsContainer) {
+                logsContainer.scrollTop = logsContainer.scrollHeight;
+            }
         }
     }, [status?.logs]);
 

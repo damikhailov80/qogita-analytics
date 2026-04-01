@@ -58,16 +58,16 @@ document.addEventListener('keydown', (e) => {
 
     if (modifierPressed && e.shiftKey && e.key.toLowerCase() === 'u') {
         e.preventDefault();
-        console.log('[Allegro Extension] Modifier+Shift+U pressed - starting batch processing');
-        startBatchProcessing();
+        console.log('[Allegro Extension] Modifier+Shift+U pressed - starting positive ROI batch processing');
+        startBatchProcessing('positive'); // positive = ROI > 0
     } else if (modifierPressed && e.shiftKey && e.key.toLowerCase() === 's') {
         e.preventDefault();
         console.log('[Allegro Extension] Modifier+Shift+S pressed - starting suspicious batch processing');
-        startBatchProcessing(true); // true = suspicious only
+        startBatchProcessing('suspicious'); // suspicious = ROI > 30
     }
 });
 
-function startBatchProcessing(suspiciousOnly = false) {
+function startBatchProcessing(mode = 'all') {
     if (isBatchProcessing) {
         console.log('[Allegro Extension] Batch processing already in progress');
         return;
@@ -86,28 +86,36 @@ function startBatchProcessing(suspiciousOnly = false) {
                 return false;
             }
 
-            // If suspicious only mode, only include suspicious rows
-            if (suspiciousOnly) {
-                if (row.dataset.roiSuspicious === 'true') {
-                    console.log('[Allegro Extension] Including suspicious row:', link.href);
+            const roi = parseFloat(row.dataset.roi);
+
+            // Filter based on mode
+            if (mode === 'suspicious') {
+                // Suspicious mode: only include rows with ROI > 30
+                if (!isNaN(roi) && roi > 30) {
+                    console.log('[Allegro Extension] Including suspicious row (ROI:', roi, '):', link.href);
+                    return link.href.includes('allegro.pl');
+                }
+                return false;
+            } else if (mode === 'positive') {
+                // Positive mode: only include rows with ROI > 0
+                if (!isNaN(roi) && roi > 0) {
+                    console.log('[Allegro Extension] Including positive ROI row (ROI:', roi, '):', link.href);
                     return link.href.includes('allegro.pl');
                 }
                 return false;
             }
 
-            // Normal mode: include all non-manual rows
+            // All mode: include all non-manual rows
             return link.href.includes('allegro.pl');
         })
         .map(link => link.href);
 
     if (links.length === 0) {
-        const mode = suspiciousOnly ? 'suspicious' : 'batch';
         console.log(`[Allegro Extension] No Allegro links found for ${mode} processing`);
         alert(`No Allegro links found for ${mode} processing`);
         return;
     }
 
-    const mode = suspiciousOnly ? 'suspicious' : 'all';
     console.log(`[Allegro Extension] Found ${links.length} Allegro links (${mode} mode)`);
 
     isBatchProcessing = true;
@@ -141,7 +149,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.action === 'startBatchProcessing') {
         // Message from popup
         console.log('[Allegro Extension] Starting batch processing from popup');
-        startBatchProcessing(message.suspiciousOnly || false);
+        let mode = 'all';
+        if (message.suspiciousOnly) {
+            mode = 'suspicious';
+        } else if (message.positiveOnly) {
+            mode = 'positive';
+        }
+        startBatchProcessing(mode);
         sendResponse({ success: true });
     }
 

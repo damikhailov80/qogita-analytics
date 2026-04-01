@@ -61,6 +61,9 @@ export const qogitaUpdateWorker = new Worker<QogitaUpdateJobData>(
             await logger.log('Deleting Allegro products...');
             await prisma.productAllegro.deleteMany({});
 
+            await logger.log('Deleting Allegro changes...');
+            await prisma.productAllegroChanges.deleteMany({});
+
             await logger.log('Deleting products...');
             await prisma.product.deleteMany({});
 

@@ -633,7 +633,7 @@ export default function SellerDetailPage() {
                                             key={order.rn}
                                             className="border-b transition-colors hover:bg-muted/50"
                                             data-price-manual={order.manual_price ? "true" : undefined}
-                                            data-roi-suspicious={order.profit_ratio > 30 ? "true" : undefined}
+                                            data-roi={order.profit_ratio != null ? Number(order.profit_ratio).toFixed(2) : undefined}
                                         >
                                             <td className="p-2 align-middle text-center sticky left-0 bg-white z-10">
                                                 <input

@@ -21,8 +21,11 @@ async function getCurrentTab() {
 // Check if we're on the right page
 async function checkPage() {
     const tab = await getCurrentTab();
-    if (!tab.url.includes('localhost:3000/products/allegro')) {
-        showStatus('Please open /products/allegro page', 'error');
+    const isAllegroPage = tab.url.includes('localhost:3000/products/allegro');
+    const isSellersPage = tab.url.includes('localhost:3000/sellers/');
+
+    if (!isAllegroPage && !isSellersPage) {
+        showStatus('Please open /products/allegro or /sellers page', 'error');
         return false;
     }
     return true;
@@ -40,6 +43,7 @@ document.getElementById('batchAll').addEventListener('click', async () => {
         // Send message to content script
         chrome.tabs.sendMessage(tab.id, {
             action: 'startBatchProcessing',
+            positiveOnly: false,
             suspiciousOnly: false
         }, (response) => {
             if (chrome.runtime.lastError) {
@@ -67,6 +71,7 @@ document.getElementById('batchSuspicious').addEventListener('click', async () =>
         // Send message to content script
         chrome.tabs.sendMessage(tab.id, {
             action: 'startBatchProcessing',
+            positiveOnly: false,
             suspiciousOnly: true
         }, (response) => {
             if (chrome.runtime.lastError) {

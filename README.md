@@ -61,7 +61,7 @@ npm run db:migrate
 - `npm run db:studio` - GUI для просмотра данных
 
 ### Воркеры
-- `npm run worker` - Запуск всех воркеров (Allegro, Qogita, Offers)
+- `npm run workers` - Запуск всех воркеров (Allegro, Qogita, Offers)
 
 ### Redis
 - `npm run redis:start` - Запуск Redis сервера
