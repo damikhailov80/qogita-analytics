@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { getPlnToEurRate } from '@/lib/currency';
 
 export async function GET() {
     try {
-        const plnToEurRate = parseFloat(process.env.PLN_TO_EUR_RATE || '4.5');
+        const plnToEurRate = getPlnToEurRate();
 
         return NextResponse.json({
             plnToEurRate,

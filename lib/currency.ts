@@ -17,3 +17,12 @@ export function getPlnToEurRate(): number {
 
     return parsedRate;
 }
+
+/**
+ * Конвертирует цену из PLN в EUR
+ * @param pricePLN - цена в PLN
+ * @returns цена в EUR
+ */
+export function convertPlnToEur(pricePLN: number): number {
+    return pricePLN / getPlnToEurRate();
+}

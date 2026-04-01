@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { getPlnToEurRate } from '@/lib/currency';
 
 /**
  * Интерфейс для продукта Allegro из CSV
@@ -112,7 +113,7 @@ export function parseAllegroRow(row: Record<string, string>): ParseResult {
     }
 
     // Конвертируем цену из PLN в EUR
-    const exchangeRate = parseFloat(process.env.PLN_TO_EUR_RATE || '5');
+    const exchangeRate = getPlnToEurRate();
     const priceEUR = pricePLN / exchangeRate;
 
     // Пропускаем товары вне диапазона цены
