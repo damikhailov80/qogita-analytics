@@ -246,7 +246,7 @@ export default function SellerDetailPage() {
         setSelectedGtins(newSelected);
     };
 
-    const handleExportCSV = async () => {
+    const handleExportDOCX = async () => {
         const selectedOrders = filteredOrders.filter(order => selectedGtins.has(order.gtin));
 
         if (selectedOrders.length === 0) {
@@ -359,6 +359,85 @@ export default function SellerDetailPage() {
         setTimeout(() => URL.revokeObjectURL(url), 100);
     };
 
+    const handleExportCSV = () => {
+        const selectedOrders = filteredOrders.filter(order => selectedGtins.has(order.gtin));
+
+        if (selectedOrders.length === 0) {
+            alert('Выберите хотя бы одну строку для экспорта');
+            return;
+        }
+
+        // Заголовки CSV
+        const headers = [
+            'RN',
+            'Seller Code',
+            'GTIN',
+            'Brand',
+            'Buy Price (€)',
+            'Sell Price (€)',
+            'Manual Price (€)',
+            'Unit Profit (€)',
+            'Profit Ratio (%)',
+            'Inventory',
+            'Total Cost (€)',
+            'Total Profit (€)',
+            'Cumulative Cost (€)',
+            'Cumulative Profit (€)',
+            'Min Order Value (€)',
+            'Sales Quantity',
+            'Product URL',
+            'Allegro URL',
+            'Image URL'
+        ];
+
+        // Формируем строки CSV
+        const rows = selectedOrders.map(order => [
+            order.rn,
+            order.seller_code,
+            order.gtin,
+            order.brand || '',
+            Number(order.buy_price).toFixed(2),
+            Number(order.sell_price).toFixed(2),
+            order.manual_price ? Number(order.manual_price).toFixed(2) : '',
+            Number(order.unit_profit).toFixed(2),
+            Number(order.profit_ratio).toFixed(2),
+            order.inventory,
+            Number(order.total_cost).toFixed(2),
+            Number(order.total_profit).toFixed(2),
+            Number(order.cumulative_cost).toFixed(2),
+            Number(order.cumulative_profit).toFixed(2),
+            order.min_order_value ? Number(order.min_order_value).toFixed(2) : '',
+            order.sales_quantity ?? '',
+            order.product_url || '',
+            `https://business.allegro.pl/listing?string=${order.gtin}`,
+            order.image_url || ''
+        ]);
+
+        // Экранируем значения для CSV
+        const escapeCsvValue = (value: string | number) => {
+            const str = String(value);
+            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        };
+
+        // Собираем CSV
+        const csvContent = [
+            headers.map(escapeCsvValue).join(','),
+            ...rows.map(row => row.map(escapeCsvValue).join(','))
+        ].join('\n');
+
+        // Создаем blob и скачиваем
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `seller_${sellerCode}_export_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
     const allSelected = filteredOrders.length > 0 && filteredOrders.every(order => selectedGtins.has(order.gtin));
     const someSelected = filteredOrders.some(order => selectedGtins.has(order.gtin));
 
@@ -380,12 +459,19 @@ export default function SellerDetailPage() {
                 </div>
                 <div className="flex gap-2 items-center">
                     {selectedGtins.size > 0 && (
-                        <Button
-                            onClick={handleExportCSV}
-                            className="ml-2"
-                        >
-                            Экспорт в DOCX ({selectedGtins.size})
-                        </Button>
+                        <>
+                            <Button
+                                onClick={handleExportCSV}
+                                variant="outline"
+                            >
+                                Экспорт в CSV ({selectedGtins.size})
+                            </Button>
+                            <Button
+                                onClick={handleExportDOCX}
+                            >
+                                Экспорт в DOCX ({selectedGtins.size})
+                            </Button>
+                        </>
                     )}
                 </div>
             </div>
