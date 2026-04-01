@@ -195,9 +195,7 @@ SELECT
   a.rn,
   a.cumulative_cost,
   a.cumulative_profit,
-  a.min_order_value,
-  (a.cumulative_cost >= a.min_order_value) AS reached_min_order,
-  (a.cumulative_profit < 0) AS is_unprofitable
+  a.min_order_value
 FROM accumulated a;
 
 -- CreateIndex for materialized view

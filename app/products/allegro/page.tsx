@@ -239,7 +239,7 @@ export default function AllegroProductsPage() {
 
             <div className="rounded-md border w-full overflow-hidden">
                 <div className="overflow-auto w-full">
-                    <table className="w-full border-collapse" style={{ tableLayout: 'fixed', minWidth: '100%' }}>
+                    <table className="w-full border-collapse text-sm" style={{ tableLayout: 'fixed', minWidth: '100%' }}>
                         <thead className="bg-muted/50">
                             <tr>
                                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b" style={{ width: '80px' }}>

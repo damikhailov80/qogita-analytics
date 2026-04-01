@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
     try {
         const searchParams = request.nextUrl.searchParams;
         const sortBy = searchParams.get('sortBy') || 'positive_items_count';
+
+        // Фильтры для Sales Qty и Sell Price
+        const minSalesQty = searchParams.get('minSalesQty');
+        const maxSalesQty = searchParams.get('maxSalesQty');
+        const minSellPrice = searchParams.get('minSellPrice');
+        const maxSellPrice = searchParams.get('maxSellPrice');
 
         const sellers = await prisma.$queryRaw<
             Array<{
@@ -24,6 +31,11 @@ export async function GET(request: NextRequest) {
       FROM order_candidates oc
       LEFT JOIN sellers s ON oc.seller_code = s.code
       LEFT JOIN products_allegro pa ON oc.gtin = pa.gtin
+      WHERE 1=1
+        ${minSalesQty ? Prisma.sql`AND COALESCE(pa.sales_quantity, 0) >= ${Number(minSalesQty)}` : Prisma.empty}
+        ${maxSalesQty ? Prisma.sql`AND COALESCE(pa.sales_quantity, 0) <= ${Number(maxSalesQty)}` : Prisma.empty}
+        ${minSellPrice ? Prisma.sql`AND oc.sell_price >= ${Number(minSellPrice)}` : Prisma.empty}
+        ${maxSellPrice ? Prisma.sql`AND oc.sell_price <= ${Number(maxSellPrice)}` : Prisma.empty}
       GROUP BY oc.seller_code, s.min_order_value
       HAVING COUNT(CASE WHEN oc.profit_ratio > 0 THEN 1 END) > 0 
         AND MAX(oc.cumulative_profit) > 0

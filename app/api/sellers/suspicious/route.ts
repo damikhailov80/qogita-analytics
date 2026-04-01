@@ -17,7 +17,6 @@ export async function GET() {
                 cumulative_cost: number;
                 cumulative_profit: number;
                 min_order_value: number | null;
-                reached_min_order: boolean;
                 image_url: string | null;
                 product_url: string | null;
                 sales_quantity: number | null;
@@ -38,7 +37,6 @@ export async function GET() {
                     oc.cumulative_cost,
                     oc.cumulative_profit,
                     oc.min_order_value,
-                    oc.reached_min_order,
                     p.image_url,
                     p.product_url,
                     pa.sales_quantity,
@@ -63,7 +61,6 @@ export async function GET() {
                 cumulative_cost,
                 cumulative_profit,
                 min_order_value,
-                reached_min_order,
                 image_url,
                 product_url,
                 sales_quantity,

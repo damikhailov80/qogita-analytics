@@ -27,9 +27,40 @@ export default function SellersPage() {
     const [updating, setUpdating] = useState(false);
     const [mounted, setMounted] = useState(false);
 
+    // Фильтры
+    const [minSalesQty, setMinSalesQty] = useState<string>('');
+    const [maxSalesQty, setMaxSalesQty] = useState<string>('');
+    const [minSellPrice, setMinSellPrice] = useState<string>('');
+    const [maxSellPrice, setMaxSellPrice] = useState<string>('');
+
     useEffect(() => {
         setMounted(true);
+        // Инициализация из URL
+        const searchParams = new URLSearchParams(window.location.search);
+        const minSalesQtyParam = searchParams.get('minSalesQty');
+        const maxSalesQtyParam = searchParams.get('maxSalesQty');
+        const minSellPriceParam = searchParams.get('minSellPrice');
+        const maxSellPriceParam = searchParams.get('maxSellPrice');
+
+        if (minSalesQtyParam) setMinSalesQty(minSalesQtyParam);
+        if (maxSalesQtyParam) setMaxSalesQty(maxSalesQtyParam);
+        if (minSellPriceParam) setMinSellPrice(minSellPriceParam);
+        if (maxSellPriceParam) setMaxSellPrice(maxSellPriceParam);
     }, []);
+
+    // Обновление URL при изменении фильтров
+    useEffect(() => {
+        if (!mounted) return;
+
+        const searchParams = new URLSearchParams();
+        if (minSalesQty) searchParams.set('minSalesQty', minSalesQty);
+        if (maxSalesQty) searchParams.set('maxSalesQty', maxSalesQty);
+        if (minSellPrice) searchParams.set('minSellPrice', minSellPrice);
+        if (maxSellPrice) searchParams.set('maxSellPrice', maxSellPrice);
+
+        const newUrl = `${window.location.pathname}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+        window.history.replaceState({}, '', newUrl);
+    }, [minSalesQty, maxSalesQty, minSellPrice, maxSellPrice, mounted]);
 
     useEffect(() => {
         if (!mounted) return;
@@ -37,7 +68,13 @@ export default function SellersPage() {
         const fetchSellers = async () => {
             setLoading(true);
             try {
-                const response = await fetch(`/api/profitable-sellers?sortBy=${sortBy}`);
+                const params = new URLSearchParams({ sortBy });
+                if (minSalesQty) params.set('minSalesQty', minSalesQty);
+                if (maxSalesQty) params.set('maxSalesQty', maxSalesQty);
+                if (minSellPrice) params.set('minSellPrice', minSellPrice);
+                if (maxSellPrice) params.set('maxSellPrice', maxSellPrice);
+
+                const response = await fetch(`/api/profitable-sellers?${params.toString()}`);
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -53,7 +90,7 @@ export default function SellersPage() {
         };
 
         fetchSellers();
-    }, [sortBy, mounted]);
+    }, [sortBy, minSalesQty, maxSalesQty, minSellPrice, maxSellPrice, mounted]);
 
     const handleSort = (field: SortField) => {
         if (sortBy === field) {
@@ -80,7 +117,13 @@ export default function SellersPage() {
             // Обновляем данные через небольшой таймаут
             setTimeout(async () => {
                 try {
-                    const response = await fetch(`/api/profitable-sellers?sortBy=${sortBy}`);
+                    const params = new URLSearchParams({ sortBy });
+                    if (minSalesQty) params.set('minSalesQty', minSalesQty);
+                    if (maxSalesQty) params.set('maxSalesQty', maxSalesQty);
+                    if (minSellPrice) params.set('minSellPrice', minSellPrice);
+                    if (maxSellPrice) params.set('maxSellPrice', maxSellPrice);
+
+                    const response = await fetch(`/api/profitable-sellers?${params.toString()}`);
 
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
@@ -99,6 +142,13 @@ export default function SellersPage() {
             alert('Ошибка при обновлении данных');
             setUpdating(false);
         }
+    };
+
+    const clearFilters = () => {
+        setMinSalesQty('');
+        setMaxSalesQty('');
+        setMinSellPrice('');
+        setMaxSellPrice('');
     };
 
     const sortedSellers = [...sellers].sort((a, b) => {
@@ -162,9 +212,69 @@ export default function SellersPage() {
                 )}
             </div>
 
+            {mounted && (
+                <div className="mb-6 p-4 border rounded-md bg-gray-50">
+                    <div className="grid grid-cols-4 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Min Sales Qty</label>
+                            <input
+                                type="number"
+                                value={minSalesQty}
+                                onChange={(e) => setMinSalesQty(e.target.value)}
+                                placeholder="0"
+                                className="w-full px-3 py-2 border rounded-md text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Max Sales Qty</label>
+                            <input
+                                type="number"
+                                value={maxSalesQty}
+                                onChange={(e) => setMaxSalesQty(e.target.value)}
+                                placeholder="∞"
+                                className="w-full px-3 py-2 border rounded-md text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Min Sell Price (€)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={minSellPrice}
+                                onChange={(e) => setMinSellPrice(e.target.value)}
+                                placeholder="0.00"
+                                className="w-full px-3 py-2 border rounded-md text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Max Sell Price (€)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={maxSellPrice}
+                                onChange={(e) => setMaxSellPrice(e.target.value)}
+                                placeholder="∞"
+                                className="w-full px-3 py-2 border rounded-md text-sm"
+                            />
+                        </div>
+                    </div>
+                    {(minSalesQty || maxSalesQty || minSellPrice || maxSellPrice) && (
+                        <div className="mt-3">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={clearFilters}
+                            >
+                                Очистить фильтры
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            )}
+
             <div className="rounded-md border w-full overflow-hidden">
                 <div className="overflow-auto w-full">
-                    <table className="w-full border-collapse">
+                    <table className="w-full border-collapse text-sm">
                         <thead className="bg-muted/50">
                             <tr>
                                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b">
@@ -220,7 +330,15 @@ export default function SellersPage() {
                                         </td>
                                         <td className="p-4 align-middle">
                                             <a
-                                                href={`/sellers/${seller.seller_code}`}
+                                                href={`/sellers/${seller.seller_code}${minSalesQty || maxSalesQty || minSellPrice || maxSellPrice
+                                                    ? '?' + new URLSearchParams({
+                                                        ...(minSalesQty && { minSalesQty }),
+                                                        ...(maxSalesQty && { maxSalesQty }),
+                                                        ...(minSellPrice && { minSellPrice }),
+                                                        ...(maxSellPrice && { maxSellPrice }),
+                                                    }).toString()
+                                                    : ''
+                                                    }`}
                                                 className="font-medium text-blue-600 hover:underline cursor-pointer"
                                             >
                                                 {seller.seller_code}

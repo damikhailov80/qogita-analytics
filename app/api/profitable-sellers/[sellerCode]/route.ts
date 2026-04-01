@@ -9,6 +9,13 @@ export async function GET(
     try {
         const { sellerCode } = await params;
 
+        // Фильтры для Sales Qty и Sell Price
+        const searchParams = request.nextUrl.searchParams;
+        const minSalesQty = searchParams.get('minSalesQty');
+        const maxSalesQty = searchParams.get('maxSalesQty');
+        const minSellPrice = searchParams.get('minSellPrice');
+        const maxSellPrice = searchParams.get('maxSellPrice');
+
         const orders = await prisma.$queryRaw<
             Array<{
                 rn: bigint;
@@ -25,8 +32,6 @@ export async function GET(
                 cumulative_cost: number;
                 cumulative_profit: number;
                 min_order_value: number | null;
-                reached_min_order: boolean;
-                is_unprofitable: boolean;
                 image_url: string | null;
                 product_url: string | null;
                 sales_quantity: number | null;
@@ -48,8 +53,6 @@ export async function GET(
                 oc.cumulative_cost,
                 oc.cumulative_profit,
                 oc.min_order_value,
-                oc.reached_min_order,
-                oc.is_unprofitable,
                 p.image_url,
                 p.product_url,
                 pa.sales_quantity,
@@ -59,6 +62,10 @@ export async function GET(
             LEFT JOIN products_allegro pa ON pa.gtin = oc.gtin
             LEFT JOIN products_allegro_changes pac ON pac.gtin = oc.gtin
             WHERE oc.seller_code = ${sellerCode}
+                ${minSalesQty ? Prisma.sql`AND COALESCE(pa.sales_quantity, 0) >= ${Number(minSalesQty)}` : Prisma.empty}
+                ${maxSalesQty ? Prisma.sql`AND COALESCE(pa.sales_quantity, 0) <= ${Number(maxSalesQty)}` : Prisma.empty}
+                ${minSellPrice ? Prisma.sql`AND oc.sell_price >= ${Number(minSellPrice)}` : Prisma.empty}
+                ${maxSellPrice ? Prisma.sql`AND oc.sell_price <= ${Number(maxSellPrice)}` : Prisma.empty}
             ORDER BY oc.rn
         `);
 
@@ -77,8 +84,6 @@ export async function GET(
             cumulative_cost: order.cumulative_cost,
             cumulative_profit: order.cumulative_profit,
             min_order_value: order.min_order_value,
-            reached_min_order: order.reached_min_order,
-            is_unprofitable: order.is_unprofitable,
             image_url: order.image_url,
             product_url: order.product_url,
             sales_quantity: order.sales_quantity,

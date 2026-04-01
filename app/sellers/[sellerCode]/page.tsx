@@ -20,8 +20,6 @@ type OrderCandidate = {
     cumulative_cost: number;
     cumulative_profit: number;
     min_order_value: number | null;
-    reached_min_order: boolean;
-    is_unprofitable: boolean;
     image_url: string | null;
     product_url: string | null;
     sales_quantity: number | null;
@@ -49,36 +47,55 @@ export default function SellerDetailPage() {
     const [mounted, setMounted] = useState(false);
     const [selectedGtins, setSelectedGtins] = useState<Set<string>>(new Set());
 
+    // Фильтры для Sales Qty и Sell Price
+    const [minSalesQty, setMinSalesQty] = useState<string>('');
+    const [maxSalesQty, setMaxSalesQty] = useState<string>('');
+    const [minSellPrice, setMinSellPrice] = useState<string>('');
+    const [maxSellPrice, setMaxSellPrice] = useState<string>('');
+
     // Инициализация из URL
     useEffect(() => {
         setMounted(true);
         const searchParams = new URLSearchParams(window.location.search);
         const brandParam = searchParams.get('brand');
-        if (brandParam) {
-            setBrandFilter(brandParam);
-        }
+        const minSalesQtyParam = searchParams.get('minSalesQty');
+        const maxSalesQtyParam = searchParams.get('maxSalesQty');
+        const minSellPriceParam = searchParams.get('minSellPrice');
+        const maxSellPriceParam = searchParams.get('maxSellPrice');
+
+        if (brandParam) setBrandFilter(brandParam);
+        if (minSalesQtyParam) setMinSalesQty(minSalesQtyParam);
+        if (maxSalesQtyParam) setMaxSalesQty(maxSalesQtyParam);
+        if (minSellPriceParam) setMinSellPrice(minSellPriceParam);
+        if (maxSellPriceParam) setMaxSellPrice(maxSellPriceParam);
     }, []);
 
     // Обновление URL при изменении фильтра
     useEffect(() => {
         if (!mounted) return;
 
-        const searchParams = new URLSearchParams(window.location.search);
-        if (brandFilter) {
-            searchParams.set('brand', brandFilter);
-        } else {
-            searchParams.delete('brand');
-        }
+        const searchParams = new URLSearchParams();
+        if (brandFilter) searchParams.set('brand', brandFilter);
+        if (minSalesQty) searchParams.set('minSalesQty', minSalesQty);
+        if (maxSalesQty) searchParams.set('maxSalesQty', maxSalesQty);
+        if (minSellPrice) searchParams.set('minSellPrice', minSellPrice);
+        if (maxSellPrice) searchParams.set('maxSellPrice', maxSellPrice);
 
         const newUrl = `${window.location.pathname}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
         window.history.replaceState({}, '', newUrl);
-    }, [brandFilter, mounted]);
+    }, [brandFilter, minSalesQty, maxSalesQty, minSellPrice, maxSellPrice, mounted]);
 
     useEffect(() => {
         const fetchOrders = async () => {
             setLoading(true);
             try {
-                const response = await fetch(`/api/profitable-sellers/${sellerCode}`);
+                const params = new URLSearchParams();
+                if (minSalesQty) params.set('minSalesQty', minSalesQty);
+                if (maxSalesQty) params.set('maxSalesQty', maxSalesQty);
+                if (minSellPrice) params.set('minSellPrice', minSellPrice);
+                if (maxSellPrice) params.set('maxSellPrice', maxSellPrice);
+
+                const response = await fetch(`/api/profitable-sellers/${sellerCode}${params.toString() ? '?' + params.toString() : ''}`);
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -109,7 +126,7 @@ export default function SellerDetailPage() {
         };
 
         fetchOrders();
-    }, [sellerCode]);
+    }, [sellerCode, minSalesQty, maxSalesQty, minSellPrice, maxSellPrice]);
 
     const handleEdit = (order: OrderCandidate) => {
         setEditingGtin(order.gtin);
@@ -153,7 +170,13 @@ export default function SellerDetailPage() {
             setEditingGtin(null);
 
             // Обновляем данные
-            const ordersResponse = await fetch(`/api/profitable-sellers/${sellerCode}`);
+            const params = new URLSearchParams();
+            if (minSalesQty) params.set('minSalesQty', minSalesQty);
+            if (maxSalesQty) params.set('maxSalesQty', maxSalesQty);
+            if (minSellPrice) params.set('minSellPrice', minSellPrice);
+            if (maxSellPrice) params.set('maxSellPrice', maxSellPrice);
+
+            const ordersResponse = await fetch(`/api/profitable-sellers/${sellerCode}${params.toString() ? '?' + params.toString() : ''}`);
             if (ordersResponse.ok) {
                 const result: ApiResponse = await ordersResponse.json();
                 setOrders(result.orders);
@@ -175,7 +198,13 @@ export default function SellerDetailPage() {
             if (!response.ok) throw new Error('Failed to delete');
 
             // Обновляем данные
-            const ordersResponse = await fetch(`/api/profitable-sellers/${sellerCode}`);
+            const params = new URLSearchParams();
+            if (minSalesQty) params.set('minSalesQty', minSalesQty);
+            if (maxSalesQty) params.set('maxSalesQty', maxSalesQty);
+            if (minSellPrice) params.set('minSellPrice', minSellPrice);
+            if (maxSellPrice) params.set('maxSellPrice', maxSellPrice);
+
+            const ordersResponse = await fetch(`/api/profitable-sellers/${sellerCode}${params.toString() ? '?' + params.toString() : ''}`);
             if (ordersResponse.ok) {
                 const result: ApiResponse = await ordersResponse.json();
                 setOrders(result.orders);
@@ -190,6 +219,14 @@ export default function SellerDetailPage() {
         if (!brandFilter) return true;
         return order.brand?.toLowerCase().includes(brandFilter.toLowerCase());
     });
+
+    const clearFilters = () => {
+        setBrandFilter('');
+        setMinSalesQty('');
+        setMaxSalesQty('');
+        setMinSellPrice('');
+        setMaxSellPrice('');
+    };
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -342,22 +379,6 @@ export default function SellerDetailPage() {
                     </p>
                 </div>
                 <div className="flex gap-2 items-center">
-                    <input
-                        type="text"
-                        placeholder="Фильтр по бренду..."
-                        value={brandFilter}
-                        onChange={(e) => setBrandFilter(e.target.value)}
-                        className="px-3 py-2 border rounded-md text-sm w-64"
-                    />
-                    {brandFilter && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setBrandFilter('')}
-                        >
-                            Очистить
-                        </Button>
-                    )}
                     {selectedGtins.size > 0 && (
                         <Button
                             onClick={handleExportCSV}
@@ -369,12 +390,82 @@ export default function SellerDetailPage() {
                 </div>
             </div>
 
+            {mounted && (
+                <div className="mb-6 p-4 border rounded-md bg-gray-50">
+                    <div className="grid grid-cols-5 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Фильтр по бренду</label>
+                            <input
+                                type="text"
+                                placeholder="Бренд..."
+                                value={brandFilter}
+                                onChange={(e) => setBrandFilter(e.target.value)}
+                                className="w-full px-3 py-2 border rounded-md text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Min Sales Qty</label>
+                            <input
+                                type="number"
+                                value={minSalesQty}
+                                onChange={(e) => setMinSalesQty(e.target.value)}
+                                placeholder="0"
+                                className="w-full px-3 py-2 border rounded-md text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Max Sales Qty</label>
+                            <input
+                                type="number"
+                                value={maxSalesQty}
+                                onChange={(e) => setMaxSalesQty(e.target.value)}
+                                placeholder="∞"
+                                className="w-full px-3 py-2 border rounded-md text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Min Sell Price (€)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={minSellPrice}
+                                onChange={(e) => setMinSellPrice(e.target.value)}
+                                placeholder="0.00"
+                                className="w-full px-3 py-2 border rounded-md text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Max Sell Price (€)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={maxSellPrice}
+                                onChange={(e) => setMaxSellPrice(e.target.value)}
+                                placeholder="∞"
+                                className="w-full px-3 py-2 border rounded-md text-sm"
+                            />
+                        </div>
+                    </div>
+                    {(brandFilter || minSalesQty || maxSalesQty || minSellPrice || maxSellPrice) && (
+                        <div className="mt-3">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={clearFilters}
+                            >
+                                Очистить все фильтры
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            )}
+
             <div className="rounded-md border w-full overflow-hidden">
-                <div className="overflow-auto w-full">
+                <div className="overflow-x-auto w-full">
                     <table className="w-full border-collapse text-sm">
                         <thead className="bg-muted/50">
                             <tr>
-                                <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-10 px-2 text-center align-middle font-medium text-muted-foreground border-b sticky left-0 bg-muted/50 z-10">
                                     <input
                                         type="checkbox"
                                         checked={allSelected}
@@ -387,58 +478,55 @@ export default function SellerDetailPage() {
                                         className="w-4 h-4 cursor-pointer"
                                     />
                                 </th>
-                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-10 px-2 text-left align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
                                     RN
                                 </th>
-                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b">
-                                    Image
+                                <th className="h-10 px-2 text-left align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
+                                    Img
                                 </th>
-                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-10 px-2 text-left align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
                                     GTIN
                                 </th>
-                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-10 px-2 text-left align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
                                     Brand
                                 </th>
-                                <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-10 px-2 text-center align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
                                     Links
                                 </th>
-                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">
-                                    Sales Qty
+                                <th className="h-10 px-2 text-right align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
+                                    Sales
                                 </th>
-                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">
-                                    Buy Price
+                                <th className="h-10 px-2 text-right align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
+                                    Buy €
                                 </th>
-                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">
-                                    Sell Price
+                                <th className="h-10 px-2 text-right align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
+                                    Sell €
                                 </th>
-                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">
-                                    Manual Price
+                                <th className="h-10 px-2 text-right align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
+                                    Manual €
                                 </th>
-                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">
-                                    Unit Profit
+                                <th className="h-10 px-2 text-right align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
+                                    Profit €
                                 </th>
-                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">
-                                    Profit Ratio
+                                <th className="h-10 px-2 text-right align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
+                                    ROI %
                                 </th>
-                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">
-                                    Inventory
+                                <th className="h-10 px-2 text-right align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
+                                    Inv
                                 </th>
-                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">
-                                    Total Cost
+                                <th className="h-10 px-2 text-right align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
+                                    Total €
                                 </th>
-                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">
-                                    Total Profit
+                                <th className="h-10 px-2 text-right align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
+                                    T.Profit €
                                 </th>
-                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">
-                                    Cumulative Cost
+                                <th className="h-10 px-2 text-right align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
+                                    Cum.Cost €
                                 </th>
-                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">
-                                    Cumulative Profit
+                                <th className="h-10 px-2 text-right align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
+                                    Cum.Profit €
                                 </th>
-                                <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground border-b">
-                                    Min Order
-                                </th>
-                                <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground border-b">
+                                <th className="h-10 px-2 text-center align-middle font-medium text-muted-foreground border-b whitespace-nowrap">
                                     Actions
                                 </th>
                             </tr>
@@ -446,7 +534,7 @@ export default function SellerDetailPage() {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={19} className="h-24 text-center">
+                                    <td colSpan={18} className="h-24 text-center">
                                         Loading...
                                     </td>
                                 </tr>
@@ -461,7 +549,7 @@ export default function SellerDetailPage() {
                                             data-price-manual={order.manual_price ? "true" : undefined}
                                             data-roi-suspicious={order.profit_ratio > 30 ? "true" : undefined}
                                         >
-                                            <td className="p-4 align-middle text-center">
+                                            <td className="p-2 align-middle text-center sticky left-0 bg-white z-10">
                                                 <input
                                                     type="checkbox"
                                                     checked={isSelected}
@@ -469,59 +557,59 @@ export default function SellerDetailPage() {
                                                     className="w-4 h-4 cursor-pointer"
                                                 />
                                             </td>
-                                            <td className="p-4 align-middle">
+                                            <td className="p-2 align-middle">
                                                 <div className="text-gray-500">{order.rn}</div>
                                             </td>
-                                            <td className="p-4 align-middle">
+                                            <td className="p-2 align-middle">
                                                 {order.image_url ? (
-                                                    <img src={order.image_url} alt="" className="w-12 h-12 object-cover rounded" />
+                                                    <img src={order.image_url} alt="" className="w-10 h-10 object-cover rounded" />
                                                 ) : (
-                                                    <div className="w-12 h-12 bg-gray-200 rounded" />
+                                                    <div className="w-10 h-10 bg-gray-200 rounded" />
                                                 )}
                                             </td>
-                                            <td className="p-4 align-middle">
-                                                <div className="font-mono text-sm">{order.gtin}</div>
+                                            <td className="p-2 align-middle">
+                                                <div className="font-mono whitespace-nowrap">{order.gtin}</div>
                                             </td>
-                                            <td className="p-4 align-middle">
-                                                <div className="text-sm">{order.brand || '-'}</div>
+                                            <td className="p-2 align-middle">
+                                                <div className="max-w-[120px] truncate" title={order.brand || '-'}>{order.brand || '-'}</div>
                                             </td>
-                                            <td className="p-4 align-middle">
-                                                <div className="flex gap-2 justify-center">
+                                            <td className="p-2 align-middle">
+                                                <div className="flex gap-1 justify-center">
                                                     {order.product_url && (
                                                         <a
                                                             href={order.product_url}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="text-blue-600 hover:underline text-sm"
+                                                            className="text-blue-600 hover:underline"
                                                         >
-                                                            Qogita
+                                                            Q
                                                         </a>
                                                     )}
                                                     <a
                                                         href={`https://business.allegro.pl/listing?string=${order.gtin}`}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="text-orange-600 hover:underline text-sm"
+                                                        className="text-orange-600 hover:underline"
                                                     >
-                                                        Allegro
+                                                        A
                                                     </a>
                                                 </div>
                                             </td>
-                                            <td className="p-4 align-middle text-right">
+                                            <td className="p-2 align-middle text-right">
                                                 <div className="font-medium">{order.sales_quantity ?? '-'}</div>
                                             </td>
-                                            <td className="p-4 align-middle text-right">
-                                                <div>€{Number(order.buy_price).toFixed(2)}</div>
+                                            <td className="p-2 align-middle text-right">
+                                                <div className="whitespace-nowrap">{Number(order.buy_price).toFixed(2)}</div>
                                             </td>
-                                            <td className="p-4 align-middle text-right">
+                                            <td className="p-2 align-middle text-right">
                                                 <a
                                                     href={`/products/allegro?gtin=${order.gtin}`}
-                                                    className="text-blue-600 hover:underline"
+                                                    className="text-blue-600 hover:underline whitespace-nowrap"
                                                 >
-                                                    €{Number(order.sell_price).toFixed(2)}
+                                                    {Number(order.sell_price).toFixed(2)}
                                                 </a>
                                             </td>
-                                            <td className="p-4 align-middle text-right">
+                                            <td className="p-2 align-middle text-right">
                                                 {isEditing ? (
                                                     <div className="flex flex-col items-end gap-1">
                                                         <input
@@ -529,7 +617,7 @@ export default function SellerDetailPage() {
                                                             step="0.01"
                                                             value={editValues.manualPrice}
                                                             onChange={(e) => setEditValues(prev => ({ ...prev, manualPrice: e.target.value }))}
-                                                            className="w-24 px-2 py-1 border rounded text-right"
+                                                            className="w-20 px-1 py-1 border rounded text-right"
                                                             placeholder="PLN"
                                                             data-gtin={order.gtin}
                                                         />
@@ -537,66 +625,61 @@ export default function SellerDetailPage() {
                                                     </div>
                                                 ) : (
                                                     <div className="flex flex-col items-end gap-1">
-                                                        <span className={order.manual_price ? 'text-blue-600 font-medium' : 'text-gray-400'}>
-                                                            {order.manual_price ? `€${Number(order.manual_price).toFixed(2)}` : '-'}
+                                                        <span className={`whitespace-nowrap ${order.manual_price ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
+                                                            {order.manual_price ? Number(order.manual_price).toFixed(2) : '-'}
                                                         </span>
                                                         {order.manual_price && (
                                                             <span className="text-xs text-gray-500">
-                                                                {(Number(order.manual_price) * plnToEurRate).toFixed(2)} PLN
+                                                                {(Number(order.manual_price) * plnToEurRate).toFixed(0)}z
                                                             </span>
                                                         )}
                                                     </div>
                                                 )}
                                             </td>
-                                            <td className="p-4 align-middle text-right">
-                                                <div className={order.unit_profit > 0 ? 'text-green-600 font-medium' : 'text-red-600'}>
-                                                    €{Number(order.unit_profit).toFixed(2)}
+                                            <td className="p-2 align-middle text-right">
+                                                <div className={`whitespace-nowrap ${order.unit_profit > 0 ? 'text-green-600 font-medium' : 'text-red-600'}`}>
+                                                    {Number(order.unit_profit).toFixed(2)}
                                                 </div>
                                             </td>
-                                            <td className="p-4 align-middle text-right">
-                                                <div className={order.profit_ratio > 0 ? 'text-green-600 font-medium' : 'text-red-600'}>
-                                                    {Number(order.profit_ratio).toFixed(2)}%
+                                            <td className="p-2 align-middle text-right">
+                                                <div className={`whitespace-nowrap ${order.profit_ratio > 0 ? 'text-green-600 font-medium' : 'text-red-600'}`}>
+                                                    {Number(order.profit_ratio).toFixed(1)}%
                                                 </div>
                                             </td>
-                                            <td className="p-4 align-middle text-right">
+                                            <td className="p-2 align-middle text-right">
                                                 <div>{order.inventory}</div>
                                             </td>
-                                            <td className="p-4 align-middle text-right">
-                                                <div>€{Number(order.total_cost).toFixed(2)}</div>
+                                            <td className="p-2 align-middle text-right">
+                                                <div className="whitespace-nowrap">{Number(order.total_cost).toFixed(0)}</div>
                                             </td>
-                                            <td className="p-4 align-middle text-right">
-                                                <div className={order.total_profit > 0 ? 'text-green-600' : 'text-red-600'}>
-                                                    €{Number(order.total_profit).toFixed(2)}
+                                            <td className="p-2 align-middle text-right">
+                                                <div className={`whitespace-nowrap ${order.total_profit > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {Number(order.total_profit).toFixed(0)}
                                                 </div>
                                             </td>
-                                            <td className="p-4 align-middle text-right">
-                                                <div className="font-medium">€{Number(order.cumulative_cost).toFixed(2)}</div>
+                                            <td className="p-2 align-middle text-right">
+                                                <div className="font-medium whitespace-nowrap">{Number(order.cumulative_cost).toFixed(0)}</div>
                                             </td>
-                                            <td className="p-4 align-middle text-right">
-                                                <div className={order.cumulative_profit > 0 ? 'text-blue-600 font-medium' : 'text-red-600 font-medium'}>
-                                                    €{Number(order.cumulative_profit).toFixed(2)}
+                                            <td className="p-2 align-middle text-right">
+                                                <div className={`font-medium whitespace-nowrap ${order.cumulative_profit > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                                                    {Number(order.cumulative_profit).toFixed(0)}
                                                 </div>
                                             </td>
-                                            <td className="p-4 align-middle text-center">
-                                                {order.reached_min_order ? (
-                                                    <span className="text-green-600">✓</span>
-                                                ) : (
-                                                    <span className="text-gray-400">-</span>
-                                                )}
-                                            </td>
-                                            <td className="p-4 align-middle text-center">
+                                            <td className="p-2 align-middle text-center">
                                                 {isEditing ? (
                                                     <div className="flex gap-1 justify-center">
                                                         <Button
                                                             size="sm"
                                                             onClick={() => handleSave(order.gtin)}
                                                             data-gtin={order.gtin}
+                                                            className="px-2 py-1 h-7"
                                                         >
                                                             Save
                                                         </Button>
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
+                                                            className="px-2 py-1 h-7"
                                                             onClick={() => setEditingGtin(null)}
                                                         >
                                                             Cancel
@@ -609,6 +692,7 @@ export default function SellerDetailPage() {
                                                             variant="outline"
                                                             onClick={() => handleEdit(order)}
                                                             data-gtin={order.gtin}
+                                                            className="px-2 py-1 h-7"
                                                         >
                                                             Edit
                                                         </Button>
@@ -617,6 +701,7 @@ export default function SellerDetailPage() {
                                                                 size="sm"
                                                                 variant="outline"
                                                                 onClick={() => handleDelete(order.gtin)}
+                                                                className="px-2 py-1 h-7"
                                                             >
                                                                 Clear
                                                             </Button>
@@ -629,7 +714,7 @@ export default function SellerDetailPage() {
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan={19} className="h-24 text-center">
+                                    <td colSpan={18} className="h-24 text-center">
                                         No orders found.
                                     </td>
                                 </tr>

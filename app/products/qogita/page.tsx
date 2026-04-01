@@ -496,7 +496,7 @@ export default function ProductsPage() {
 
             <div className="rounded-md border w-full overflow-hidden">
                 <div className="overflow-auto w-full">
-                    <table className="w-full border-collapse" style={{ minWidth: '1400px' }}>
+                    <table className="w-full border-collapse text-sm" style={{ minWidth: '1400px' }}>
                         <thead className="bg-muted/50">
                             {table.getHeaderGroups().map((headerGroup) => (
                                 <tr key={headerGroup.id}>

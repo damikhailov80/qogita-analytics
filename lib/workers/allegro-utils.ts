@@ -32,14 +32,17 @@ function normalizeGtin(gtin: string): string {
  * Парсит строку CSV в объект AllegroProduct
  * Извлекает GTIN, количество продаж (traffic) и цену (price_netto)
  * Конвертирует цену из PLN в EUR используя курс из переменной окружения
- * Фильтрует товары с sales_quantity ниже порога из ALLEGRO_MIN_TRAFFIC
+ * Фильтрует товары с sales_quantity вне диапазона ALLEGRO_MIN_TRAFFIC - ALLEGRO_MAX_TRAFFIC
+ * Фильтрует товары с ценой вне диапазона ALLEGRO_MIN_PRICE - ALLEGRO_MAX_PRICE (в EUR)
+ * Фильтрует товары с количеством продавцов вне диапазона ALLEGRO_MIN_SELLERS - ALLEGRO_MAX_SELLERS
  */
 export function parseAllegroRow(row: Record<string, string>): AllegroProduct | null {
     const gtinRaw = row['GTIN'] || row['gtin'] || '';
     const traffic = row['traffic'] || '';
     const priceNetto = row['price_netto'] || '';
+    const offersCount = row['OFFERS_COUNT'] || row['offers_count'] || row['OD|FEERS_COUNT'] || '';
 
-    if (!gtinRaw || !traffic || !priceNetto) return null;
+    if (!gtinRaw || !traffic || !priceNetto || !offersCount) return null;
 
     // Нормализуем GTIN
     const gtin = normalizeGtin(gtinRaw);
@@ -50,6 +53,19 @@ export function parseAllegroRow(row: Record<string, string>): AllegroProduct | n
         return null;
     }
     const salesQuantity = parseInt(trafficMatch[0]);
+
+    // Извлекаем количество продавцов (если есть)
+    if (offersCount) {
+        const sellersCount = parseInt(offersCount);
+        if (!isNaN(sellersCount)) {
+            // Пропускаем товары вне диапазона количества продавцов
+            const minSellers = parseInt(process.env.ALLEGRO_MIN_SELLERS || '2');
+            const maxSellers = parseInt(process.env.ALLEGRO_MAX_SELLERS || '999');
+            if (sellersCount < minSellers || sellersCount > maxSellers) {
+                return null;
+            }
+        }
+    }
 
     // Пропускаем товары вне диапазона traffic
     const minTraffic = parseInt(process.env.ALLEGRO_MIN_TRAFFIC || '100');
@@ -68,8 +84,15 @@ export function parseAllegroRow(row: Record<string, string>): AllegroProduct | n
     if (isNaN(salesQuantity) || isNaN(pricePLN)) return null;
 
     // Конвертируем цену из PLN в EUR
-    const exchangeRate = parseFloat(process.env.PLN_TO_EUR_RATE || '4.28');
+    const exchangeRate = parseFloat(process.env.PLN_TO_EUR_RATE || '4.5');
     const priceEUR = pricePLN / exchangeRate;
+
+    // Пропускаем товары вне диапазона цены
+    const minPrice = parseFloat(process.env.ALLEGRO_MIN_PRICE || '0');
+    const maxPrice = parseFloat(process.env.ALLEGRO_MAX_PRICE || '99999');
+    if (priceEUR < minPrice || priceEUR > maxPrice) {
+        return null;
+    }
 
     return {
         gtin,

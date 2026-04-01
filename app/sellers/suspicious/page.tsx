@@ -17,7 +17,6 @@ type SuspiciousProduct = {
     cumulative_cost: number;
     cumulative_profit: number;
     min_order_value: number | null;
-    reached_min_order: boolean;
     image_url: string | null;
     product_url: string | null;
     sales_quantity: number | null;
