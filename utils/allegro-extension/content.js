@@ -27,28 +27,34 @@ document.addEventListener('mouseover', (e) => {
 
     console.log('[Allegro Extension] Allegro link hovered with Shift:', url);
     console.log('[Allegro Extension] Command/Meta key pressed:', e.metaKey);
+    console.log('[Allegro Extension] Alt key pressed:', e.altKey);
+
+    // Check for modifier key (Command on Mac, Alt on Windows)
+    const modifierPressed = e.metaKey || e.altKey;
 
     // Send message to background script to open tab and extract price
     try {
         chrome.runtime.sendMessage({
             action: 'extractPrice',
             url: url,
-            shouldClickAgain: e.metaKey // true if Shift+Command
+            shouldClickAgain: modifierPressed // true if Shift+Command (Mac) or Shift+Alt (Windows)
         });
     } catch (error) {
         console.error('[Allegro Extension] Extension context invalidated. Please reload the page.');
     }
 }, true);
 
-// Listen for Command+Shift+U to start batch processing
+// Listen for Command+Shift+U (Mac) or Alt+Shift+U (Windows) to start batch processing
 document.addEventListener('keydown', (e) => {
-    if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 'u') {
+    const modifierPressed = e.metaKey || e.altKey;
+
+    if (modifierPressed && e.shiftKey && e.key.toLowerCase() === 'u') {
         e.preventDefault();
-        console.log('[Allegro Extension] Command+Shift+U pressed - starting batch processing');
+        console.log('[Allegro Extension] Modifier+Shift+U pressed - starting batch processing');
         startBatchProcessing();
-    } else if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 's') {
+    } else if (modifierPressed && e.shiftKey && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        console.log('[Allegro Extension] Command+Shift+S pressed - starting suspicious batch processing');
+        console.log('[Allegro Extension] Modifier+Shift+S pressed - starting suspicious batch processing');
         startBatchProcessing(true); // true = suspicious only
     }
 });
