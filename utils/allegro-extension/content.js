@@ -28,9 +28,10 @@ document.addEventListener('mouseover', (e) => {
     console.log('[Allegro Extension] Allegro link hovered with Shift:', url);
     console.log('[Allegro Extension] Command/Meta key pressed:', e.metaKey);
     console.log('[Allegro Extension] Alt key pressed:', e.altKey);
+    console.log('[Allegro Extension] Ctrl key pressed:', e.ctrlKey);
 
-    // Check for modifier key (Command on Mac, Alt on Windows)
-    const modifierPressed = e.metaKey || e.altKey;
+    // Check for modifier key (Command on Mac, Alt or Ctrl on Windows)
+    const modifierPressed = e.metaKey || e.altKey || e.ctrlKey;
 
     // Send message to background script to open tab and extract price
     try {
@@ -44,9 +45,19 @@ document.addEventListener('mouseover', (e) => {
     }
 }, true);
 
-// Listen for Command+Shift+U (Mac) or Alt+Shift+U (Windows) to start batch processing
+// Listen for Command+Shift+U (Mac) or Alt+Shift+U / Ctrl+Shift+U (Windows) to start batch processing
 document.addEventListener('keydown', (e) => {
-    const modifierPressed = e.metaKey || e.altKey;
+    // Support Command (Mac), Alt (Windows), or Ctrl (Windows alternative)
+    const modifierPressed = e.metaKey || e.altKey || e.ctrlKey;
+
+    console.log('[Allegro Extension] Key pressed:', {
+        key: e.key,
+        shiftKey: e.shiftKey,
+        metaKey: e.metaKey,
+        altKey: e.altKey,
+        ctrlKey: e.ctrlKey,
+        modifierPressed: modifierPressed
+    });
 
     if (modifierPressed && e.shiftKey && e.key.toLowerCase() === 'u') {
         e.preventDefault();
