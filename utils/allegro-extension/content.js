@@ -28,10 +28,9 @@ document.addEventListener('mouseover', (e) => {
     console.log('[Allegro Extension] Allegro link hovered with Shift:', url);
     console.log('[Allegro Extension] Command/Meta key pressed:', e.metaKey);
     console.log('[Allegro Extension] Alt key pressed:', e.altKey);
-    console.log('[Allegro Extension] Ctrl key pressed:', e.ctrlKey);
 
-    // Check for modifier key (Command on Mac, Alt or Ctrl on Windows)
-    const modifierPressed = e.metaKey || e.altKey || e.ctrlKey;
+    // Check for modifier key (Command on Mac, Alt on Windows)
+    const modifierPressed = e.metaKey || e.altKey;
 
     // Send message to background script to open tab and extract price
     try {
@@ -45,17 +44,15 @@ document.addEventListener('mouseover', (e) => {
     }
 }, true);
 
-// Listen for Command+Shift+U (Mac) or Alt+Shift+U / Ctrl+Shift+U (Windows) to start batch processing
+// Listen for Command+Shift+U (Mac) or Alt+Shift+U (Windows) to start batch processing
 document.addEventListener('keydown', (e) => {
-    // Support Command (Mac), Alt (Windows), or Ctrl (Windows alternative)
-    const modifierPressed = e.metaKey || e.altKey || e.ctrlKey;
+    const modifierPressed = e.metaKey || e.altKey;
 
     console.log('[Allegro Extension] Key pressed:', {
         key: e.key,
         shiftKey: e.shiftKey,
         metaKey: e.metaKey,
         altKey: e.altKey,
-        ctrlKey: e.ctrlKey,
         modifierPressed: modifierPressed
     });
 
@@ -131,6 +128,8 @@ function startBatchProcessing(suspiciousOnly = false) {
 
 // Listen for batch processing completion messages
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    console.log('[Allegro Extension] Message received:', message);
+
     if (message.action === 'batchProcessingComplete') {
         console.log('[Allegro Extension] Batch processing complete');
         isBatchProcessing = false;
@@ -139,5 +138,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         alert(`Batch processing complete! Processed ${message.count} items.`);
     } else if (message.action === 'batchProcessingProgress') {
         console.log(`[Allegro Extension] Progress: ${message.current}/${message.total}`);
+    } else if (message.action === 'startBatchProcessing') {
+        // Message from popup
+        console.log('[Allegro Extension] Starting batch processing from popup');
+        startBatchProcessing(message.suspiciousOnly || false);
+        sendResponse({ success: true });
     }
+
+    return true; // Keep message channel open for async response
 });
