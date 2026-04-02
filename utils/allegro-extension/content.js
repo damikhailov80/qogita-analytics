@@ -58,12 +58,8 @@ document.addEventListener('keydown', (e) => {
 
     if (modifierPressed && e.shiftKey && e.key.toLowerCase() === 'u') {
         e.preventDefault();
-        console.log('[Allegro Extension] Modifier+Shift+U pressed - starting positive ROI batch processing');
-        startBatchProcessing('positive'); // positive = ROI > 0
-    } else if (modifierPressed && e.shiftKey && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        console.log('[Allegro Extension] Modifier+Shift+S pressed - starting suspicious batch processing');
-        startBatchProcessing('suspicious'); // suspicious = ROI > 30
+        console.log('[Allegro Extension] Modifier+Shift+U pressed - starting positive profit batch processing');
+        startBatchProcessing('positive'); // positive = profit > 0
     }
 });
 
@@ -86,20 +82,13 @@ function startBatchProcessing(mode = 'all') {
                 return false;
             }
 
-            const roi = parseFloat(row.dataset.roi);
+            const profit = parseFloat(row.dataset.profit);
 
             // Filter based on mode
-            if (mode === 'suspicious') {
-                // Suspicious mode: only include rows with ROI > 30
-                if (!isNaN(roi) && roi > 30) {
-                    console.log('[Allegro Extension] Including suspicious row (ROI:', roi, '):', link.href);
-                    return link.href.includes('allegro.pl');
-                }
-                return false;
-            } else if (mode === 'positive') {
-                // Positive mode: only include rows with ROI > 0
-                if (!isNaN(roi) && roi > 0) {
-                    console.log('[Allegro Extension] Including positive ROI row (ROI:', roi, '):', link.href);
+            if (mode === 'positive') {
+                // Positive mode: only include rows with profit > 0
+                if (!isNaN(profit) && profit > 0) {
+                    console.log('[Allegro Extension] Including positive profit row (profit:', profit, '):', link.href);
                     return link.href.includes('allegro.pl');
                 }
                 return false;
@@ -150,9 +139,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Message from popup
         console.log('[Allegro Extension] Starting batch processing from popup');
         let mode = 'all';
-        if (message.suspiciousOnly) {
-            mode = 'suspicious';
-        } else if (message.positiveOnly) {
+        if (message.positiveOnly) {
             mode = 'positive';
         }
         startBatchProcessing(mode);

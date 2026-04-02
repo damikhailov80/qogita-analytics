@@ -444,6 +444,11 @@ export default function SellerDetailPage() {
     const allSelected = filteredOrders.length > 0 && filteredOrders.every(order => selectedGtins.has(order.gtin));
     const someSelected = filteredOrders.some(order => selectedGtins.has(order.gtin));
 
+    // Получаем минимальную сумму заказа из первого товара (все товары одного продавца имеют одинаковое значение)
+    const minOrderValue = orders.length > 0 && orders[0].min_order_value
+        ? Number(orders[0].min_order_value).toFixed(0)
+        : null;
+
     return (
         <div className="w-full py-10 px-4">
             <div className="flex justify-between items-center mb-6">
@@ -455,7 +460,14 @@ export default function SellerDetailPage() {
                     >
                         ← Назад
                     </Button>
-                    <h1 className="text-3xl font-bold">Seller: {sellerCode}</h1>
+                    <h1 className="text-3xl font-bold">
+                        Seller: {sellerCode}
+                        {minOrderValue && (
+                            <span className="text-xl text-gray-600 ml-3">
+                                (Min: {minOrderValue}€)
+                            </span>
+                        )}
+                    </h1>
                     <p className="text-sm text-gray-600 mt-1">
                         Кандидаты на заказ, отсортированные по рангу
                     </p>
@@ -636,7 +648,7 @@ export default function SellerDetailPage() {
                                             key={order.rn}
                                             className="border-b transition-colors hover:bg-muted/50"
                                             data-price-manual={order.manual_price ? "true" : undefined}
-                                            data-roi={order.profit_ratio != null ? Number(order.profit_ratio).toFixed(2) : undefined}
+                                            data-profit={order.unit_profit != null ? Number(order.unit_profit).toFixed(2) : undefined}
                                         >
                                             <td className="p-2 align-middle text-center sticky left-0 bg-white z-10">
                                                 <input

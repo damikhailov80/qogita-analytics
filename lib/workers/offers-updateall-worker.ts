@@ -313,11 +313,22 @@ export const offersUpdateAllWorker = new Worker<OffersUpdateAllJobData>(
                             continue;
                         }
 
+                        // Логируем количество полученных offers
+                        console.log(`[Offers UpdateAll Worker] ${product.gtin}: Received ${offers.length} offers from Qogita`);
+                        if (offers.length === 0) {
+                            console.log(`[Offers UpdateAll Worker] ${product.gtin}: No offers available for this product`);
+                        }
+
                         // Обрабатываем каждый offer
                         for (const offerData of offers) {
                             try {
+                                // Проверяем существует ли seller
+                                const existingSeller = await prisma.seller.findUnique({
+                                    where: { code: offerData.seller }
+                                });
+
                                 // Upsert seller
-                                const seller = await prisma.seller.upsert({
+                                await prisma.seller.upsert({
                                     where: { code: offerData.seller },
                                     create: {
                                         code: offerData.seller,
@@ -330,11 +341,12 @@ export const offersUpdateAllWorker = new Worker<OffersUpdateAllJobData>(
                                     }
                                 });
 
-                                const isNewSeller = seller.createdAt.getTime() === seller.updatedAt.getTime();
-                                if (isNewSeller) {
+                                if (!existingSeller) {
                                     state.results.sellersCreated++;
+                                    console.log(`[Offers UpdateAll Worker] ${product.gtin}: Created seller ${offerData.seller} with MOV ${offerData.mov} ${offerData.movCurrency}`);
                                 } else {
                                     state.results.sellersUpdated++;
+                                    console.log(`[Offers UpdateAll Worker] ${product.gtin}: Updated seller ${offerData.seller} - OLD MOV: ${existingSeller.minOrderValue} ${existingSeller.currency}, NEW MOV: ${offerData.mov} ${offerData.movCurrency}`);
                                 }
 
                                 // Upsert offer

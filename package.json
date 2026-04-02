@@ -15,7 +15,7 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "fetch-offers": "tsx scripts/fetch-offers.ts",
-    "worker": "tsx scripts/start-worker.ts",
+    "workers": "tsx scripts/start-worker.ts",
     "redis:start": "brew services start redis",
     "redis:stop": "brew services stop redis",
     "redis:status": "redis-cli ping",

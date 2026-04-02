@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 
 type SuspiciousProduct = {
@@ -17,6 +17,7 @@ type SuspiciousProduct = {
     cumulative_cost: number;
     cumulative_profit: number;
     min_order_value: number | null;
+    seller_min_order_value: number | null;
     image_url: string | null;
     product_url: string | null;
     sales_quantity: number | null;
@@ -30,6 +31,7 @@ type ApiResponse = {
 
 export default function SuspiciousSellersPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [products, setProducts] = useState<SuspiciousProduct[]>([]);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
@@ -38,6 +40,10 @@ export default function SuspiciousSellersPage() {
         manualPrice: string;
     }>({ manualPrice: '' });
     const [plnToEurRate, setPlnToEurRate] = useState<number>(4.5);
+    const [sellerFilter, setSellerFilter] = useState<string>(searchParams.get('seller') || '');
+    const [minOrderFilter, setMinOrderFilter] = useState<'all' | 'ok' | 'not-ok'>(
+        (searchParams.get('minOrder') as 'all' | 'ok' | 'not-ok') || 'all'
+    );
 
     const fetchProducts = async () => {
         setLoading(true);
@@ -75,6 +81,24 @@ export default function SuspiciousSellersPage() {
     useEffect(() => {
         fetchProducts();
     }, []);
+
+    // Синхронизация фильтров с URL
+    useEffect(() => {
+        const params = new URLSearchParams();
+
+        if (sellerFilter) {
+            params.set('seller', sellerFilter);
+        }
+
+        if (minOrderFilter !== 'all') {
+            params.set('minOrder', minOrderFilter);
+        }
+
+        const queryString = params.toString();
+        const newUrl = queryString ? `/sellers/suspicious?${queryString}` : '/sellers/suspicious';
+
+        router.replace(newUrl, { scroll: false });
+    }, [sellerFilter, minOrderFilter, router]);
 
     const handleRefresh = async () => {
         setUpdating(true);
@@ -162,6 +186,23 @@ export default function SuspiciousSellersPage() {
         }
     };
 
+    const filteredProducts = products.filter(product => {
+        if (sellerFilter && !product.seller_code.toLowerCase().includes(sellerFilter.toLowerCase())) {
+            return false;
+        }
+
+        if (minOrderFilter !== 'all') {
+            const minOrderValue = product.seller_min_order_value ?? 0;
+            const totalProductCost = product.inventory * product.buy_price;
+            const hasEnoughStock = minOrderValue > 0 ? totalProductCost >= minOrderValue : true;
+
+            if (minOrderFilter === 'ok' && !hasEnoughStock) return false;
+            if (minOrderFilter === 'not-ok' && hasEnoughStock) return false;
+        }
+
+        return true;
+    });
+
     return (
         <div className="w-full py-10 px-4">
             <div className="flex justify-between items-center mb-6">
@@ -175,7 +216,7 @@ export default function SuspiciousSellersPage() {
                     </Button>
                     <h1 className="text-3xl font-bold">Подозрительные товары</h1>
                     <p className="text-sm text-gray-600 mt-1">
-                        Товары с Profit Ratio больше 30% от всех продавцов
+                        Топ 100 товаров с лучшим абсолютным профитом (Profit Ratio {'>'} 30%)
                     </p>
                 </div>
                 <Button
@@ -185,6 +226,50 @@ export default function SuspiciousSellersPage() {
                 >
                     {updating ? 'Обновление...' : 'Пересчитать данные'}
                 </Button>
+            </div>
+
+            <div className="mb-4 p-4 border rounded-md bg-gray-50">
+                <div className="flex items-end gap-4">
+                    <div className="flex-1">
+                        <label className="block text-sm font-medium mb-1">Фильтр по продавцу</label>
+                        <input
+                            type="text"
+                            value={sellerFilter}
+                            onChange={(e) => setSellerFilter(e.target.value)}
+                            placeholder="Введите код продавца..."
+                            className="w-full px-3 py-2 border rounded-md text-sm"
+                        />
+                    </div>
+                    <div className="flex-1">
+                        <label className="block text-sm font-medium mb-1">Min Order OK</label>
+                        <select
+                            value={minOrderFilter}
+                            onChange={(e) => setMinOrderFilter(e.target.value as 'all' | 'ok' | 'not-ok')}
+                            className="w-full px-3 py-2 border rounded-md text-sm"
+                        >
+                            <option value="all">Все</option>
+                            <option value="ok">✓ Достаточно</option>
+                            <option value="not-ok">✗ Недостаточно</option>
+                        </select>
+                    </div>
+                    {(sellerFilter || minOrderFilter !== 'all') && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                setSellerFilter('');
+                                setMinOrderFilter('all');
+                            }}
+                        >
+                            Очистить
+                        </Button>
+                    )}
+                </div>
+                {(sellerFilter || minOrderFilter !== 'all') && (
+                    <div className="mt-2 text-sm text-gray-600">
+                        Найдено товаров: {filteredProducts.length} из {products.length}
+                    </div>
+                )}
             </div>
 
             <div className="rounded-md border w-full overflow-hidden">
@@ -197,6 +282,9 @@ export default function SuspiciousSellersPage() {
                                 </th>
                                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b">
                                     Seller
+                                </th>
+                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground border-b">
+                                    Min Order
                                 </th>
                                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground border-b">
                                     Image
@@ -229,6 +317,9 @@ export default function SuspiciousSellersPage() {
                                     Inventory
                                 </th>
                                 <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground border-b">
+                                    Min Order OK
+                                </th>
+                                <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground border-b">
                                     Actions
                                 </th>
                             </tr>
@@ -236,19 +327,22 @@ export default function SuspiciousSellersPage() {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={13} className="h-24 text-center">
+                                    <td colSpan={15} className="h-24 text-center">
                                         Loading...
                                     </td>
                                 </tr>
                             ) : products.length > 0 ? (
-                                products.map((product, index) => {
+                                filteredProducts.map((product, index) => {
                                     const isEditing = editingGtin === product.gtin;
+                                    const minOrderValue = product.seller_min_order_value ?? 0;
+                                    const totalProductCost = product.inventory * product.buy_price;
+                                    const hasEnoughStock = minOrderValue > 0 ? totalProductCost >= minOrderValue : true;
                                     return (
                                         <tr
                                             key={`${product.seller_code}-${product.gtin}`}
                                             className="border-b transition-colors hover:bg-muted/50"
                                             data-price-manual={product.manual_price ? "true" : undefined}
-                                            data-roi={product.profit_ratio != null ? Number(product.profit_ratio).toFixed(2) : undefined}
+                                            data-profit={product.unit_profit != null ? Number(product.unit_profit).toFixed(2) : undefined}
                                         >
                                             <td className="p-4 align-middle">
                                                 <div className="text-gray-500">{index + 1}</div>
@@ -260,6 +354,14 @@ export default function SuspiciousSellersPage() {
                                                 >
                                                     {product.seller_code}
                                                 </a>
+                                            </td>
+                                            <td className="p-4 align-middle text-right">
+                                                <div className="font-medium">
+                                                    {product.seller_min_order_value != null
+                                                        ? `€${Number(product.seller_min_order_value).toFixed(2)}`
+                                                        : '-'
+                                                    }
+                                                </div>
                                             </td>
                                             <td className="p-4 align-middle">
                                                 {product.image_url ? (
@@ -348,6 +450,20 @@ export default function SuspiciousSellersPage() {
                                                 <div>{product.inventory}</div>
                                             </td>
                                             <td className="p-4 align-middle text-center">
+                                                {minOrderValue > 0 ? (
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <span className={`text-lg ${hasEnoughStock ? 'text-green-600' : 'text-red-600'}`}>
+                                                            {hasEnoughStock ? '✓' : '✗'}
+                                                        </span>
+                                                        <span className="text-xs text-gray-500">
+                                                            €{totalProductCost.toFixed(2)}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-400">-</span>
+                                                )}
+                                            </td>
+                                            <td className="p-4 align-middle text-center">
                                                 {isEditing ? (
                                                     <div className="flex gap-1 justify-center">
                                                         <Button
@@ -392,8 +508,8 @@ export default function SuspiciousSellersPage() {
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan={13} className="h-24 text-center">
-                                        Подозрительных товаров не найдено.
+                                    <td colSpan={15} className="h-24 text-center">
+                                        {sellerFilter ? 'Товары не найдены по заданному фильтру.' : 'Подозрительных товаров не найдено.'}
                                     </td>
                                 </tr>
                             )}
@@ -405,6 +521,7 @@ export default function SuspiciousSellersPage() {
             {!loading && products.length > 0 && (
                 <div className="mt-4 text-sm text-gray-600">
                     Всего подозрительных товаров: {products.length}
+                    {(sellerFilter || minOrderFilter !== 'all') && ` (показано: ${filteredProducts.length})`}
                 </div>
             )}
         </div>

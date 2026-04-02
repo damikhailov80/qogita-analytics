@@ -43,36 +43,7 @@ document.getElementById('batchAll').addEventListener('click', async () => {
         // Send message to content script
         chrome.tabs.sendMessage(tab.id, {
             action: 'startBatchProcessing',
-            positiveOnly: false,
-            suspiciousOnly: false
-        }, (response) => {
-            if (chrome.runtime.lastError) {
-                console.error('[Allegro Extension Popup] Error:', chrome.runtime.lastError);
-                showStatus('Error: Please reload the page', 'error');
-            } else {
-                showStatus('Batch processing started!', 'success');
-            }
-        });
-    } catch (error) {
-        console.error('[Allegro Extension Popup] Error:', error);
-        showStatus('Error starting batch processing', 'error');
-    }
-});
-
-// Batch Suspicious button
-document.getElementById('batchSuspicious').addEventListener('click', async () => {
-    console.log('[Allegro Extension Popup] Batch Suspicious clicked');
-
-    if (!await checkPage()) return;
-
-    const tab = await getCurrentTab();
-
-    try {
-        // Send message to content script
-        chrome.tabs.sendMessage(tab.id, {
-            action: 'startBatchProcessing',
-            positiveOnly: false,
-            suspiciousOnly: true
+            positiveOnly: false
         }, (response) => {
             if (chrome.runtime.lastError) {
                 console.error('[Allegro Extension Popup] Error:', chrome.runtime.lastError);
