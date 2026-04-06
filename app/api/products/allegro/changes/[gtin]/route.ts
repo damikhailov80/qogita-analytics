@@ -20,16 +20,7 @@ export async function GET(
         const { gtin } = await params;
 
         const change = await prisma.productAllegroChanges.findUnique({
-            where: { gtin },
-            include: {
-                product: {
-                    select: {
-                        name: true,
-                        brand: true,
-                        category: true,
-                    }
-                }
-            }
+            where: { gtin }
         });
 
         if (!change) {
@@ -73,10 +64,7 @@ export async function PATCH(
 
         const change = await prisma.productAllegroChanges.update({
             where: { gtin },
-            data: updateData,
-            include: {
-                product: true,
-            }
+            data: updateData
         });
 
         // Обновляем materialized view в фоне
@@ -133,9 +121,6 @@ export async function PUT(
             update: {
                 manualPrice: parsedManualPrice,
                 isDisabled: parsedIsDisabled,
-            },
-            include: {
-                product: true,
             }
         });
 

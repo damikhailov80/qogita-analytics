@@ -346,7 +346,6 @@ export const offersUpdateAllWorker = new Worker<OffersUpdateAllJobData>(
                                     console.log(`[Offers UpdateAll Worker] ${product.gtin}: Created seller ${offerData.seller} with MOV ${offerData.mov} ${offerData.movCurrency}`);
                                 } else {
                                     state.results.sellersUpdated++;
-                                    console.log(`[Offers UpdateAll Worker] ${product.gtin}: Updated seller ${offerData.seller} - OLD MOV: ${existingSeller.minOrderValue} ${existingSeller.currency}, NEW MOV: ${offerData.mov} ${offerData.movCurrency}`);
                                 }
 
                                 // Upsert offer
