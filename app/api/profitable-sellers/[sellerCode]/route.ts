@@ -68,7 +68,7 @@ export async function GET(
                 ${maxSalesQty ? Prisma.sql`AND COALESCE(pa.sales_quantity, 0) <= ${Number(maxSalesQty)}` : Prisma.empty}
                 ${minSellPrice ? Prisma.sql`AND oc.sell_price >= ${Number(minSellPrice)}` : Prisma.empty}
                 ${maxSellPrice ? Prisma.sql`AND oc.sell_price <= ${Number(maxSellPrice)}` : Prisma.empty}
-            ORDER BY oc.rn
+            ORDER BY oc.unit_profit DESC
         `);
 
         const formattedOrders = orders.map((order) => ({

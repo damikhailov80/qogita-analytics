@@ -29,21 +29,29 @@ export async function GET(request: NextRequest) {
             // Получаем все продукты без пагинации для сортировки
             const allProducts = await prisma.productAllegro.findMany({
                 where,
-                include: {
-                    product: {
-                        select: {
-                            name: true,
-                            brand: true,
-                            category: true,
-                            imageUrl: true,
-                        }
-                    },
-                    changes: true,
-                },
             });
 
+            // Manually join with Product and ProductAllegroChanges
+            const gtins = allProducts.map(p => p.gtin);
+            const relatedProducts = await prisma.product.findMany({
+                where: { gtin: { in: gtins } },
+                select: { gtin: true, name: true, brand: true, category: true, imageUrl: true }
+            });
+            const relatedChanges = await prisma.productAllegroChanges.findMany({
+                where: { gtin: { in: gtins } }
+            });
+
+            const productMap = new Map(relatedProducts.map(p => [p.gtin, p]));
+            const changesMap = new Map(relatedChanges.map(c => [c.gtin, c]));
+
+            const enrichedAllProducts = allProducts.map(p => ({
+                ...p,
+                product: productMap.get(p.gtin) || null,
+                changes: changesMap.get(p.gtin) || null,
+            }));
+
             // Сортируем в памяти
-            allProducts.sort((a, b) => {
+            enrichedAllProducts.sort((a, b) => {
                 let aValue: any;
                 let bValue: any;
 
@@ -67,28 +75,36 @@ export async function GET(request: NextRequest) {
             });
 
             // Применяем пагинацию после сортировки
-            products = allProducts.slice(skip, skip + pageSize);
+            products = enrichedAllProducts.slice(skip, skip + pageSize);
         } else {
             // Обычная сортировка по полям ProductAllegro
             products = await prisma.productAllegro.findMany({
                 where,
-                include: {
-                    product: {
-                        select: {
-                            name: true,
-                            brand: true,
-                            category: true,
-                            imageUrl: true,
-                        }
-                    },
-                    changes: true,
-                },
                 orderBy: {
                     [sortField]: sortOrder,
                 },
                 skip,
                 take: pageSize,
             });
+
+            // Manually join with Product and ProductAllegroChanges
+            const gtins = products.map(p => p.gtin);
+            const relatedProducts = await prisma.product.findMany({
+                where: { gtin: { in: gtins } },
+                select: { gtin: true, name: true, brand: true, category: true, imageUrl: true }
+            });
+            const relatedChanges = await prisma.productAllegroChanges.findMany({
+                where: { gtin: { in: gtins } }
+            });
+
+            const productMap = new Map(relatedProducts.map(p => [p.gtin, p]));
+            const changesMap = new Map(relatedChanges.map(c => [c.gtin, c]));
+
+            products = products.map(p => ({
+                ...p,
+                product: productMap.get(p.gtin) || null,
+                changes: changesMap.get(p.gtin) || null,
+            }));
         }
 
         const totalPages = Math.ceil(totalCount / pageSize);

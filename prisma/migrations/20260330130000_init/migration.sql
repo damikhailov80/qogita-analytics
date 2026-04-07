@@ -164,7 +164,7 @@ ranked AS (
     b.*,
     ROW_NUMBER() OVER (
       PARTITION BY seller_code
-      ORDER BY total_profit DESC
+      ORDER BY unit_profit DESC
     ) AS rn
   FROM base b
 ),
